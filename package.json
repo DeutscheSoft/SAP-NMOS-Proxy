@@ -1,0 +1,16 @@
+{
+  "name": "sdp-nmos-proxy",
+  "version": "1.0.0",
+  "description": "A proxy application which connects NMOS networks with DDM/SAP.",
+  "main": "bin/proxy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {},
+  "author": "Arne Goedeke <arne@deuso.de>",
+  "contributors": [
+    "Tobias S. Josefowitz <tobij@deuso.de>"
+  ],
+  "license": "MIT",
+  "private": true
+}
