@@ -248,7 +248,7 @@ class Packet
  */
 class Port extends Events
 {
-  constructor()
+  constructor(iface)
   {
     super();
     this.socket = UDP.createSocket('udp4');
@@ -274,7 +274,10 @@ class Port extends Events
       }
     });
     this.socket.bind(9875, () => {
-      this.socket.addMembership('239.255.255.255');
+      if (iface)
+        this.socket.addMembership('239.255.255.255', iface);
+      else
+        this.socket.addMembership('239.255.255.255');
     });
   }
 

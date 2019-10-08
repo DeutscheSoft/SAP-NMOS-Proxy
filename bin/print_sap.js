@@ -1,6 +1,12 @@
 const SAP = require('../src/sap.js');
 
-const port = new SAP.Port();
+var port;
+
+if (process.argv.length > 2)
+  port = new SAP.Port(process.argv[2]);
+else
+  port = new SAP.Port();
+
 const announcements = new SAP.Announcements(port);
 
 announcements.on('add', (id, sdp, packet) => {
