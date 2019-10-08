@@ -12,6 +12,39 @@ function read_cstring(buf, pos)
   return [ pos+1, buf.toString('ascii', start, pos) ];
 }
 
+function get_sdp_origin(sdp)
+{
+  for (line of sdp.split('\r\n')) {
+    const [ type, value ] = line.split('=');
+
+    if (type === 'o')
+    {
+      return value;
+    }
+  }
+
+  throw new Error('No origin in SDP string.');
+}
+
+// From RFC 4566:
+//<sess-id> is a numeric string such that the tuple of <username>,
+//      <sess-id>, <nettype>, <addrtype>, and <unicast-address> forms a
+//      globally unique identifier for the session.  The method of
+//      <sess-id> allocation is up to the creating tool, but it has been
+//      suggested that a Network Time Protocol (NTP) format timestamp be
+//      used to ensure uniqueness [13].
+function unique_id_from_sdp(sdp)
+{
+  const origin = get_sdp_origin(sdp);
+
+  const [ username, session_id, session_version, nettype, addrtype, addr ] = origin.split(' ');
+
+  return [ username, session_id, nettype, addrtype, addr ].join(' ');
+}
+
+/**
+ * SAP Packet.
+ */
 class Packet
 {
   constructor(o)
@@ -47,18 +80,36 @@ class Packet
     this.payload_type = o.payload_type || 'application/sdp';
     this.payload = o.payload;
     this.deletion = !!(o.deletion);
+
+    if (this.has_sdp_payload())
+    {
+      this.id = unique_id_from_sdp(this.sdp);
+    }
+    else
+    {
+      this.id = null;
+    }
   }
 
+  /**
+   * Returns true if this packet is an announcement.
+   */
   is_announcement()
   {
     return !this.deletion;
   }
 
+  /**
+   * Returns true if this packet contains sdp payload.
+   */
   has_sdp_payload()
   {
     return this.payload_type === 'application/sdp';
   }
 
+  /**
+   * The SDP payload.
+   */
   get sdp()
   {
     if (!this.has_sdp_payload())
@@ -69,6 +120,9 @@ class Packet
     return this.payload;
   }
 
+  /**
+   * Encode the SDP payload into a Buffer object.
+   */
   toBuffer(compression)
   {
     if (compression)
@@ -122,6 +176,9 @@ class Packet
     return buf;
   }
 
+  /**
+   * Decodes an SDP Packet from a Buffer object.
+   */
   static fromBuffer(buf)
   {
     let pos = 0;
@@ -186,6 +243,9 @@ class Packet
   }
 }
 
+/**
+ * Port class which allows listening for SAP packets.
+ */
 class Port extends Events
 {
   constructor()
@@ -224,6 +284,64 @@ class Port extends Events
   }
 }
 
+/**
+ * This class manages a dynamic list of announcements received on a given
+ * port. It handles session deletions and fires appropriate events.
+ */
+class Announcements extends Events
+{
+  constructor(port)
+  {
+    super();
+    this.port = port;
+    this.sessions = new Map();
+    this._on_message = (packet) => {
+      if (!packet.has_sdp_payload()) return;
+
+      const id = packet.id;
+      const prev_sdp = this.sessions.get(id);
+
+      if (packet.is_announcement())
+      {
+        const sdp = packet.sdp;
+
+        if (prev_sdp)
+        {
+          if (sdp === prev_sdp) return;
+          this.sessions.set(id, sdp);
+          this.emit('update', id, sdp, packet);
+        }
+        else
+        {
+          this.sessions.set(id, sdp);
+          this.emit('add', id, sdp, packet);
+        }
+      }
+      else
+      {
+        if (!prev_sdp) return;
+        this.sessions.delete(id);
+        this.emit('delete', id, prev_sdp, packet);
+      }
+    };
+    this.port.on('message', this._on_message);
+  }
+
+  /**
+   * Stop listening for announcements on the port.
+   */
+  close()
+  {
+    this.port.removeEventListener('message', this._on_message);
+  }
+
+  forEach(cb, ctx)
+  {
+    return this.sessions.forEach(cb, ctx);
+  }
+}
+
 module.exports = {
   Port: Port,
+  Announcements: Announcements,
 };
