@@ -2,6 +2,7 @@ const UDP = require('dgram');
 const Events = require('events');
 const util = require('util');
 const net = require('net');
+const SDP = require('./sdp.js');
 
 function read_cstring(buf, pos)
 {
@@ -10,36 +11,6 @@ function read_cstring(buf, pos)
   while (buf.readUInt8(pos)) pos ++;
 
   return [ pos+1, buf.toString('ascii', start, pos) ];
-}
-
-function get_sdp_origin(sdp)
-{
-  for (line of sdp.split('\r\n')) {
-    const [ type, value ] = line.split('=');
-
-    if (type === 'o')
-    {
-      return value;
-    }
-  }
-
-  throw new Error('No origin in SDP string.');
-}
-
-// From RFC 4566:
-//<sess-id> is a numeric string such that the tuple of <username>,
-//      <sess-id>, <nettype>, <addrtype>, and <unicast-address> forms a
-//      globally unique identifier for the session.  The method of
-//      <sess-id> allocation is up to the creating tool, but it has been
-//      suggested that a Network Time Protocol (NTP) format timestamp be
-//      used to ensure uniqueness [13].
-function unique_id_from_sdp(sdp)
-{
-  const origin = get_sdp_origin(sdp);
-
-  const [ username, session_id, session_version, nettype, addrtype, addr ] = origin.split(' ');
-
-  return [ username, session_id, nettype, addrtype, addr ].join(' ');
 }
 
 /**
@@ -83,11 +54,11 @@ class Packet
 
     if (this.has_sdp_payload())
     {
-      this.id = unique_id_from_sdp(this.sdp);
+      this.sdp = new SDP(o.payload);
     }
     else
     {
-      this.id = null;
+      this.sdp = null
     }
   }
 
@@ -110,14 +81,14 @@ class Packet
   /**
    * The SDP payload.
    */
-  get sdp()
+  get id()
   {
     if (!this.has_sdp_payload())
     {
       throw new Error('Payload type is not SDP');
     }
 
-    return this.payload;
+    return this.sdp.id;
   }
 
   /**
