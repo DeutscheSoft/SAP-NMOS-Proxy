@@ -283,7 +283,7 @@ class Announcements extends Events
 
         if (prev_sdp)
         {
-          if (sdp === prev_sdp) return;
+          if (sdp.raw === prev_sdp.raw) return;
           this.sessions.set(id, sdp);
           this.emit('update', id, sdp, packet);
         }
