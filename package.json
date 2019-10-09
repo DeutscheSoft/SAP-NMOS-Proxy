@@ -12,5 +12,10 @@
     "Tobias S. Josefowitz <tobij@deuso.de>"
   ],
   "license": "MIT",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "dnssd": "^0.4.1",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.7"
+  }
 }
