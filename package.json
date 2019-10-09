@@ -16,6 +16,7 @@
   "dependencies": {
     "dnssd": "^0.4.1",
     "request": "^2.88.0",
-    "request-promise-native": "^1.0.7"
+    "request-promise-native": "^1.0.7",
+    "uuid": "^3.3.3"
   }
 }
