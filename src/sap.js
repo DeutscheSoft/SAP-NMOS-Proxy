@@ -2,6 +2,7 @@ const UDP = require('dgram');
 const Events = require('events');
 const util = require('util');
 const net = require('net');
+const Cleanup = require('./event_helpers.js').Cleanup;
 const SDP = require('./sdp.js');
 
 function read_cstring(buf, pos)
@@ -302,17 +303,64 @@ class Announcements extends Events
     this.port.on('message', this._on_message);
   }
 
+  waitForEvent(event, id)
+  {
+    if (!this.sessions.has(id))
+      return Promise.reject(new Error('Unknown ID.'));
+
+    return new Promise((resolve, reject) => {
+      const cleanup = new Cleanup();
+
+      cleanup.subscribe(this, event, (_id, sdp, packet) => {
+        if (_id !== id) return;
+        cleanup.close();
+        resolve(id)
+      });
+      cleanup.subscribe(this, 'close', () => {
+        cleanup.close();
+        reject(new Error('closed.'));
+      });
+    });
+  }
+
+  waitForDeletion(id)
+  {
+    return this.waitForEvent('delete', id);
+  }
+
+  async waitForUpdate(id)
+  {
+    await this.waitForEvent('update', id)
+    
+    return this.sessions.get(id);
+  }
+
   /**
    * Stop listening for announcements on the port.
    */
   close()
   {
     this.port.removeEventListener('message', this._on_message);
+    this.emit('close');
   }
 
   forEach(cb, ctx)
   {
     return this.sessions.forEach(cb, ctx);
+  }
+
+  forEachAsync(cb, ctx)
+  {
+    if (!ctx) ctx = this;
+    const cleanup = new Cleanup();
+
+    this.forEach(cb, ctx);
+
+    cleanup.subscribe(this, 'add', (id, sdp, packet) => {
+      cb.call(ctx, sdp, id);
+    });
+
+    return cleanup;
   }
 }
 
