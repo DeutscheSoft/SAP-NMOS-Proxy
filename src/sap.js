@@ -239,6 +239,7 @@ class Packet
       hash: hash,
       payload_type: payload_type,
       payload: payload,
+      deletion: T,
     });
   }
 }
