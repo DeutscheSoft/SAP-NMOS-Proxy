@@ -12,12 +12,12 @@ const announcements = new SAP.Announcements(port);
 announcements.on('add', (id, sdp, packet) => {
   console.log('+++ Received SAP (id=%o) from %s with SDP payload:\n  %s\n',
               packet.id,
-              packet.source, sdp.replace(/\n/g, '\n  '));
+              packet.source, sdp.toString().replace(/\n/g, '\n  '));
 });
 announcements.on('delete', (id, sdp, packet) => {
   console.log('--- Received SAP (id=%o) from %s with SDP payload:\n  %s\n',
               packet.id,
-              packet.source, sdp.replace(/\n/g, '\n  '));
+              packet.source, sdp.toString().replace(/\n/g, '\n  '));
 });
 
 port.on('error', (e) => {
