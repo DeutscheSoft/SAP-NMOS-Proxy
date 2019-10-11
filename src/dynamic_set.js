@@ -7,6 +7,7 @@ class DynamicSet extends Events
   {
     super();
     this.entries = new Map();
+    this.closed = false;
   }
 
   has(id)
@@ -37,6 +38,22 @@ class DynamicSet extends Events
 
     this.entries.set(id, entry);
     this.emit('update', id, entry, prev, ...extra);
+  }
+
+  addOrUpdate(id, entry, ...extra)
+  {
+    if (this.entries.has(id))
+    {
+      const prev = this.entries.get(id);
+
+      this.entries.set(id, entry);
+      this.emit('update', id, entry, prev, ...extra);
+    }
+    else
+    {
+      this.entries.set(id, entry);
+      this.emit('add', id, entry, ...extra);
+    }
   }
 
   delete(id, ...extra)
@@ -105,6 +122,7 @@ class DynamicSet extends Events
 
   close()
   {
+    this.closed = true;
     this.emit('close');
     this.entries.clear();
   }

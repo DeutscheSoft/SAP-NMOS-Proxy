@@ -83,6 +83,61 @@ class RegistrationAPI extends RestAPI
   }
 }
 
+class Senders extends DynamicSet
+{
+  constructor(query_api, poll_interval)
+  {
+    super();
+    this.api = query_api;
+    this.poll_interval = poll_interval || 5000;
+    this.poll_id = undefined;
+    this.fetch();
+  }
+
+  async fetch()
+  {
+    this.poll_id = undefined;
+    
+    try
+    {
+      const senders = await this.api.fetchSenders();
+
+      if (this.closed) return;
+
+      senders.forEach((sender) => {
+        const id = sender.id;
+
+        const prev = this.get(id);
+
+        if (prev)
+        {
+          if (prev.version !== sender.version)
+            this.update(id, sender);
+        }
+        else
+        {
+          this.add(id, sender);
+        }
+      });
+    }
+    catch (err)
+    {
+      if (this.closed) return;
+
+      console.error('fetching senders failed:', err);
+    }
+
+    this.poll_id = setTimeout(() => this.fetch(), this.poll_interval);
+  }
+
+  close()
+  {
+    super.close();
+    if (this.poll_id !== undefined)
+      clearTimeout(this.poll_id);
+  }
+}
+
 class QueryAPI extends RestAPI
 {
   constructor(url)
@@ -90,19 +145,24 @@ class QueryAPI extends RestAPI
     super(url + '/x-nmos/query/v1.3/');
   }
 
-  nodes()
+  fetchNodes()
   {
     return this.get('nodes');
   }
 
-  senders()
+  fetchSenders()
   {
     return this.get('senders');
   }
 
-  receivers()
+  fetchReceivers()
   {
     return this.get('receivers');
+  }
+
+  senders(poll_interval)
+  {
+    return new Senders(this, poll_interval);
   }
 }
 
