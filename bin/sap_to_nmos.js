@@ -14,7 +14,7 @@ const cleanup = nmos_registries.forEachAsync(async (api, url) => {
   // TODO: add this local cleanup object to the top level cleanup
   const cleanup = announce_to_registry(announcements, api);
 
-  await nmos_registries.waitForDeletion(url);
+  await nmos_registries.waitForDelete(url);
 
   cleanup.close();
 });

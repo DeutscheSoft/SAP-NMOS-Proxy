@@ -2,6 +2,7 @@ const Events = require('events');
 const net = require('net');
 const util = require('util');
 const URL = require('url').URL;
+const DynamicSet = require('./dynamic_set.js');
 
 const Cleanup = require('./event_helpers.js').Cleanup;
 
@@ -119,12 +120,16 @@ function url_from_service(info)
   return util.format('%s://%s:%d', proto, host, port);
 }
 
-class Resolver extends Events
+class Resolver extends DynamicSet
 {
+  get apis()
+  {
+    return this.entries;
+  }
+
   constructor(options, api_class, dnssd_type)
   {
     super();
-    this.apis = new Map();
 
     this.browser = new dnssd.Browser(dnssd.tcp('nmos-query'), options);
 
@@ -134,8 +139,7 @@ class Resolver extends Events
         const url = url_from_service(info);
         const api = new api_class(url);
 
-        this.apis.set(url, api);
-        this.emit('add', url, api);
+        this.add(url, api);
       }
       catch (error)
       {
@@ -145,11 +149,9 @@ class Resolver extends Events
     this.browser.on('serviceDown', (info) => {
       try
       {
-        const api = this.apis.get(url);
-        if (api)
+        if (this.has(url))
         {
-          this.apis.delete(url);
-          this.emit('delete', url, api);
+          this.delete(url);
         }
       }
       catch (error)
@@ -160,54 +162,10 @@ class Resolver extends Events
     this.browser.start();
   }
 
-  waitForEvent(event, url)
-  {
-    if (!this.apis.has(url))
-      return Promise.reject(new Error('Unknown URL.'));
-
-    return new Promise((resolve, reject) => {
-      const cleanup = new Cleanup();
-
-      cleanup.subscribe(this, event, (_url, api) => {
-        if (_url !== url) return;
-        cleanup.close();
-        resolve(url)
-      });
-      cleanup.subscribe(this, 'close', () => {
-        cleanup.close();
-        reject(new Error('closed.'));
-      });
-    });
-  }
-
-  waitForDeletion(url)
-  {
-    return this.waitForEvent('delete', url);
-  }
-
   close()
   {
+    super.close();
     this.browser.stop();
-    this.emit('close');
-  }
-
-  forEach(cb, ctx)
-  {
-    return this.apis.forEach(cb, ctx);
-  }
-
-  forEachAsync(cb, ctx)
-  {
-    if (!ctx) ctx = this;
-    const cleanup = new Cleanup();
-
-    this.apis.forEach(cb, ctx);
-
-    cleanup.subscribe(this, 'add', (url, api) => {
-      cb.call(ctx, api, url);
-    });
-
-    return cleanup;
   }
 }
 

@@ -37,7 +37,7 @@ function announce_to_registry(sap_announcements, registry)
   const cleanup = new Cleanup();
 
   cleanup.add(sap_announcements.forEachAsync(async (sdp, id) => {
-    const delete_p = sap_announcements.waitForDeletion(id);
+    const delete_p = sap_announcements.waitForDelete(id);
     const cleanup_p = cleanup.whenClosed();
 
     do
@@ -57,10 +57,10 @@ function announce_to_registry(sap_announcements, registry)
         console.log('item was updated', id);
         sdp = await update_p;
         break;
-      case 1:
+      case 1: // delete
         console.log('removing %o from nmos registry %o.', sdp.id, registry.url.href);
         return;
-      case 2:
+      case 2: // cleanup
         console.log('cleanup called');
         return;
       }

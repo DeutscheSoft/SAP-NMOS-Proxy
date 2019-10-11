@@ -4,6 +4,7 @@ const util = require('util');
 const net = require('net');
 const Cleanup = require('./event_helpers.js').Cleanup;
 const SDP = require('./sdp.js');
+const DynamicSet = require('./dynamic_set.js');
 
 function read_cstring(buf, pos)
 {
@@ -264,18 +265,22 @@ class Port extends Events
  * This class manages a dynamic list of announcements received on a given
  * port. It handles session deletions and fires appropriate events.
  */
-class Announcements extends Events
+class Announcements extends DynamicSet
 {
+  get sessions()
+  {
+    return this.entries;
+  }
+
   constructor(port)
   {
     super();
     this.port = port;
-    this.sessions = new Map();
     this._on_message = (packet) => {
       if (!packet.has_sdp_payload()) return;
 
       const id = packet.id;
-      const prev_sdp = this.sessions.get(id);
+      const prev_sdp = this.get(id);
 
       if (packet.is_announcement())
       {
@@ -284,55 +289,20 @@ class Announcements extends Events
         if (prev_sdp)
         {
           if (sdp.raw === prev_sdp.raw) return;
-          this.sessions.set(id, sdp);
-          this.emit('update', id, sdp, packet);
+          this.update(id, sdp, packet);
         }
         else
         {
-          this.sessions.set(id, sdp);
-          this.emit('add', id, sdp, packet);
+          this.add(id, sdp, packet);
         }
       }
       else
       {
         if (!prev_sdp) return;
-        this.sessions.delete(id);
-        this.emit('delete', id, prev_sdp, packet);
+        this.delete(id, packet);
       }
     };
     this.port.on('message', this._on_message);
-  }
-
-  waitForEvent(event, id)
-  {
-    if (!this.sessions.has(id))
-      return Promise.reject(new Error('Unknown ID.'));
-
-    return new Promise((resolve, reject) => {
-      const cleanup = new Cleanup();
-
-      cleanup.subscribe(this, event, (_id, sdp, packet) => {
-        if (_id !== id) return;
-        cleanup.close();
-        resolve(id)
-      });
-      cleanup.subscribe(this, 'close', () => {
-        cleanup.close();
-        reject(new Error('closed.'));
-      });
-    });
-  }
-
-  waitForDeletion(id)
-  {
-    return this.waitForEvent('delete', id);
-  }
-
-  async waitForUpdate(id)
-  {
-    await this.waitForEvent('update', id)
-    
-    return this.sessions.get(id);
   }
 
   /**
@@ -340,27 +310,8 @@ class Announcements extends Events
    */
   close()
   {
+    super.close();
     this.port.removeEventListener('message', this._on_message);
-    this.emit('close');
-  }
-
-  forEach(cb, ctx)
-  {
-    return this.sessions.forEach(cb, ctx);
-  }
-
-  forEachAsync(cb, ctx)
-  {
-    if (!ctx) ctx = this;
-    const cleanup = new Cleanup();
-
-    this.forEach(cb, ctx);
-
-    cleanup.subscribe(this, 'add', (id, sdp, packet) => {
-      cb.call(ctx, sdp, id);
-    });
-
-    return cleanup;
   }
 }
 
