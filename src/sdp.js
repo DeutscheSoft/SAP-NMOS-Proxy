@@ -34,12 +34,15 @@ class SDP
     return values;
   }
 
-  get_field(c)
+  get_field(c, def)
   {
     const values = this.get_fields(c);
 
     if (values.length === 0)
+    {
+      if (arguments.length == 2) return def;
       throw new Error('Field not found.');
+    }
 
     if (values.length > 1)
       throw new Error('Field is not unique.');
@@ -50,6 +53,17 @@ class SDP
   get origin()
   {
     return this.get_field('o');
+  }
+
+  get name()
+  {
+    return this.get_field('s', null);
+  }
+
+  get origin_addr()
+  {
+    const [ username, session_id, session_version, nettype, addrtype, addr ] = this.origin.split(' ');
+    return addr;
   }
 
   toString()

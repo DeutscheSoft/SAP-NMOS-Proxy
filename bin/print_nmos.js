@@ -3,8 +3,12 @@ const nmos = require('../src/nmos.js');
 const queries = new nmos.QueryResolver();
 const registries = new nmos.RegistryResolver();
 
-registries.on('add', (url) => console.log('registry found: %o', url));
-queries.on('add', async (url, api) => {
-  console.log('senders: ', await api.senders());
-  console.log('receivers: ', await api.receivers());
+queries.forEachAsync((api, url) => {
+  const senders = api.senders();
+
+  console.log('registry found: %o', url);
+
+  senders.forEachAsync((sender, id) => {
+    console.log('sender found: %o', sender);
+  });
 });
