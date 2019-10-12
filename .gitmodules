@@ -1,0 +1,3 @@
+[submodule "external/nmos-discovery-registration"]
+	path = external/nmos-discovery-registration
+	url = https://github.com/AMWA-TV/nmos-discovery-registration

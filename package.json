@@ -13,7 +13,11 @@
   ],
   "license": "MIT",
   "private": true,
+  "peerDependencies": {
+    "ajv": "^6.10.2"
+  },
   "dependencies": {
+    "connect": "^3.7.0",
     "dnssd": "^0.4.1",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7",
