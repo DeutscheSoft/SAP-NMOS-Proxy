@@ -1,8 +1,4 @@
-const Events = require('events');
-const net = require('net');
-const util = require('util');
-const DynamicSet = require('./dynamic_set.js');
-
-const Cleanup = require('./event_helpers.js').Cleanup;
-
-
+module.exports = {
+  Node: require('./nmos/node.js'),
+  Discovery: require('./node/discovery.js'),
+};
