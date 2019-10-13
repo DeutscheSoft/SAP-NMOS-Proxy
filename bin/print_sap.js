@@ -10,12 +10,15 @@ else
 const announcements = new SAP.Announcements(port);
 
 announcements.on('add', (id, sdp, packet) => {
+  console.log((new Date()).toString());
   console.log('+++ Received SAP (id=%o) from %s with SDP payload:\n  %s\n',
               packet.id,
               packet.source, sdp.toString().replace(/\n/g, '\n  '));
 });
-announcements.on('delete', (id, sdp, packet) => {
-  console.log('--- Received SAP (id=%o) from %s with SDP payload:\n  %s\n',
+announcements.on('delete', (id, sdp, packet, explicit) => {
+  console.log((new Date()).toString());
+  console.log('--- %s SAP (id=%o) from %s with SDP payload:\n  %s\n',
+              explicit ? "Received" : "Timed out",
               packet.id,
               packet.source, sdp.toString().replace(/\n/g, '\n  '));
 });

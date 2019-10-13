@@ -6,6 +6,14 @@ const Cleanup = require('./event_helpers.js').Cleanup;
 const SDP = require('./sdp.js');
 const DynamicSet = require('./dynamic_set.js');
 
+
+// Adhering to RFC 2974 apparently is neither popular nor useful. Instead, we
+// will assume announcements are due every 30 seconds, which is at least what
+// our current hardware seems to do.
+const AD_INTERVAL = 30;
+const NO_OF_ADS = 10; // Timeout after this amount has been missed.
+
+
 function read_cstring(buf, pos)
 {
   const start = pos;
@@ -276,6 +284,7 @@ class Announcements extends DynamicSet
   {
     super();
     this.port = port;
+    this._timeouts = new Map();
     this._on_message = (packet) => {
       if (!packet.has_sdp_payload()) return;
 
@@ -285,21 +294,32 @@ class Announcements extends DynamicSet
       if (packet.is_announcement())
       {
         const sdp = packet.sdp;
+        const timeout = () => {
+          this._timeouts.delete(id);
+          this.delete(id, packet);
+        };
 
         if (prev_sdp)
         {
+          clearTimeout(this._timeouts.get(id));
+          this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
+                                            1000));
           if (sdp.raw === prev_sdp.raw) return;
           this.update(id, sdp, packet);
         }
         else
         {
           this.add(id, sdp, packet);
+          this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
+                                            1000));
         }
       }
       else
       {
         if (!prev_sdp) return;
-        this.delete(id, packet);
+        clearTimeout(this._timeouts.get(id));
+        this._timeouts.delete(id);
+        this.delete(id, packet, true);
       }
     };
     this.port.on('message', this._on_message);

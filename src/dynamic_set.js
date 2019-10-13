@@ -64,7 +64,7 @@ class DynamicSet extends Events
     const prev = this.entries.get(id);
 
     this.entries.delete(id);
-    this.emit('delete', id, entry, ...extra);
+    this.emit('delete', id, prev, ...extra);
   }
 
   waitForEvent(event, id)
