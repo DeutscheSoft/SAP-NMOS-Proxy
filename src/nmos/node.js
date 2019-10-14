@@ -9,6 +9,7 @@ const dnssd = require('dnssd');
 const Cleanup = require('../event_helpers.js').Cleanup;
 const DynamicSet = require('../dynamic_set.js');
 const RegistryResolver = require('./discovery.js').RegistryResolver;
+const SDP = require('../sdp.js');
 
 function whenOne(it)
 {
@@ -64,6 +65,24 @@ async function retry(task, n, timeout)
 
 class Resource extends Events
 {
+  getNode()
+  {
+    let tmp = this;
+
+    while (tmp !== null)
+    {
+      if (tmp instanceof Node) return tmp;
+      tmp = tmp.parent;
+    }
+
+    return null;
+  }
+
+  get json()
+  {
+    return this.info;
+  }
+
   get id()
   {
     return this.info.id;
@@ -159,7 +178,7 @@ class ResourceSet extends DynamicSet
     this.parent = parent;
   }
 
-  create(info)
+  create(info, type)
   {
     const id = info.id;
 
@@ -168,7 +187,9 @@ class ResourceSet extends DynamicSet
       throw new Error("Resource with given id already exists.");
     }
 
-    const resource = new this.type(this.parent, info);
+    if (!type) type = this.type;
+
+    const resource = new type(this.parent, info);
 
     resource.on('close', () => {
       this.delete(id);
@@ -179,12 +200,12 @@ class ResourceSet extends DynamicSet
     return resource;
   }
 
-  make(info)
+  make(info, type)
   {
     const resource = this.get(info.id);
 
     if (!resource)
-      return this.create(info);
+      return this.create(info, type);
 
     resource.update(info);
 
@@ -212,14 +233,43 @@ class Sender extends Resource
 
   registerSelf(api)
   {
-    return api.registerSender(this.info);
+    return api.registerSender(this.json);
   }
 
   unregisterSelf(api)
   {
-    return api.deleteSender(this.info);
+    return api.deleteSender(this.json);
   }
 
+  getManifest()
+  {
+    return null;
+  }
+}
+
+class RTPSender extends Sender
+{
+  get json()
+  {
+    return Object.assign({
+      manifest_href: this.getNode().getManifestUrl(this.id, 'sdp'),
+    }, this.info);
+  }
+
+  constructor(parent, info)
+  {
+    const sdp = info.sdp;
+    if (!(sdp instanceof SDP))
+      throw new TypeError('Expected type SDP in field \'sdp\'.');
+    delete info.sdp;
+    super(parent, info);
+    this.sdp = sdp;
+  }
+
+  getManifest()
+  {
+    return [ 'application/sdp', this.sdp.raw ];
+  }
 }
 
 class Senders extends ResourceSet
@@ -232,6 +282,13 @@ class Senders extends ResourceSet
 
 class Device extends Resource
 {
+  get json()
+  {
+    return Object.assign({}, this.info, {
+      senders: Array.from(this.senders.keys()),
+    });
+  }
+
   get node()
   {
     return this.parent;
@@ -240,17 +297,22 @@ class Device extends Resource
   constructor(node, info)
   {
     super(node, info);
-    this.senders = new Senders();
+    this.senders = new Senders(this);
+  }
+
+  getSender(id)
+  {
+    return this.senders.get(id);
   }
 
   registerSelf(api)
   {
-    return api.registerDevice(this.info);
+    return api.registerDevice(this.json);
   }
 
   unregisterSelf(api)
   {
-    return api.deleteDevice(this.info);
+    return api.deleteDevice(this.json);
   }
 
   startChildRegistration(api)
@@ -264,6 +326,14 @@ class Device extends Resource
       device_id: this.id,
     });
     return this.senders.make(info);
+  }
+
+  makeRTPSender(info)
+  {
+    info = Object.assign({}, info, {
+      device_id: this.id,
+    });
+    return this.senders.make(info, RTPSender);
   }
 }
 
@@ -337,10 +407,112 @@ class Node extends Resource
     this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), http_port);
     this.resolver = new RegistryResolver(dnssd_options);
     this.cleanup = new Cleanup();
-    this.devices = new Devices();
+    this.devices = new Devices(this);
 
-    const app = connect().use('/self', (req, res, next) => {
-      res.end(JSON.stringify(this.info), 'applicatio/json'); 
+    const app = connect()
+    .use('/x-nmos/node/v1.3/self', (req, res, next) => {
+      res.end(JSON.stringify(this.info), 'application/json');
+      next();
+    })
+    .use('/x-nmos/node/v1.3/senders', (req, res, next) => {
+      const sender_id = req.url.substr(1);
+
+      if (sender_id.length)
+      {
+        let found = false;
+
+        this.devices.forEach((device) => {
+          if (found) return;
+          const sender = device.getSender(sender_id);
+
+          if (!sender) return;
+
+          found = true;
+          res.end(JSON.stringify(sender.json), 'application/json');
+        });
+
+        if (!found)
+        {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not found.');
+        }
+      }
+      else
+      {
+        const senders = [];
+
+        this.devices.forEach((device) => {
+          device.senders.forEach((sender, id) => {
+            senders.push(sender.json);
+          });
+        });
+
+        res.end(JSON.stringify(senders), 'application/json');
+      }
+    })
+    .use('/x-nmos/node/v1.3/devices', (req, res, next) => {
+      const device_id = req.url.substr(1);
+
+      if (device_id.length)
+      {
+        const device = this.devices.get(device_id);
+
+        if (device)
+        {
+          res.end(JSON.stringify(device.json), 'application/json');
+        }
+        else
+        {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not found.');
+        }
+
+      }
+      else
+      {
+        const devices = Array.from(this.devices.values()).map((dev) => dev.json);
+
+        res.end(JSON.stringify(devices), 'application/json');
+      }
+    })
+    .use('/_manifest', (req, res, next) => {
+      const path = req.url.substr(1);
+
+      if (path.length)
+      {
+        let found = false;
+
+        const sender_id = path.split('.')[0];
+        this.devices.forEach((device) => {
+          const sender = device.getSender(sender_id);
+
+          if (!sender) return;
+
+          const manifest = sender.getManifest();
+
+          if (!manifest) return;
+
+          res.setHeader('Content-Type', manifest[0]);
+          res.end(manifest[1]);
+          found = true;
+        });
+
+        if (found) return;
+      }
+
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found.');
+    })
+    .use('/x-nmos/node/v1.3/', (req, res, next) => {
+      if (req.url === '/')
+      {
+        const paths = [
+          'self/',
+          'devices/',
+          'senders/'
+        ];
+        res.end(JSON.stringify(paths), 'application/json');
+      }
     });
 
     this.http = http.createServer(app).listen(http_port, ip);
@@ -352,12 +524,12 @@ class Node extends Resource
 
   registerSelf(api)
   {
-    return api.registerNode(this.info);
+    return api.registerNode(this.json);
   }
 
   unregisterSelf(api)
   {
-    return api.deleteNode(this.info);
+    return api.deleteNode(this.json);
   }
 
   startChildRegistration(api)
@@ -396,6 +568,18 @@ class Node extends Resource
     this.http.close();
     this.advertisement.close();
     this.cleanup.close();
+  }
+
+  baseUrl()
+  {
+    const addr = this.http.address();
+
+    return util.format('http://%s:%d', addr.address, addr.port);
+  }
+
+  getManifestUrl(id, type)
+  {
+    return util.format('%s/_manifest/%s.%s', this.baseUrl(), id, type);
   }
 }
 
