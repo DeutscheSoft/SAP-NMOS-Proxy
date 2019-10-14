@@ -8,7 +8,8 @@ queries.forEachAsync((api, url) => {
 
   console.log('registry found: %o', url);
 
-  senders.forEachAsync((sender, id) => {
+  senders.forEachAsync(async (sender, id) => {
     console.log('sender found: %o', sender);
+    console.log('SDP: %s', await sender.fetchManifest());
   });
 });
