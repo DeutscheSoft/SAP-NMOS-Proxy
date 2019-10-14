@@ -184,6 +184,22 @@ class RegistrationAPI extends RestAPI
   }
 }
 
+class Sender
+{
+  constructor(info)
+  {
+    this.info = info;
+  }
+
+  fetchManifest()
+  {
+    return request({
+      method: 'GET',
+      uri: new URL(this.info.manifest_href),
+    });
+  }
+}
+
 class Senders extends DynamicSet
 {
   constructor(query_api, poll_interval)
@@ -205,19 +221,19 @@ class Senders extends DynamicSet
 
       if (this.closed) return;
 
-      senders.forEach((sender) => {
-        const id = sender.id;
+      senders.forEach((info) => {
+        const id = info.id;
 
         const prev = this.get(id);
 
         if (prev)
         {
-          if (prev.version !== sender.version)
-            this.update(id, sender);
+          if (prev.version !== info.version)
+            this.update(id, new Sender(info));
         }
         else
         {
-          this.add(id, sender);
+          this.add(id, new Sender(info));
         }
       });
     }
