@@ -135,7 +135,7 @@ class Resource extends Events
     cleanup.whenClosed().then(async () => {
       try
       {
-        await unregisterSelf(api);
+        await this.unregisterSelf(api);
       } catch (err) {
         console.error('Failed to remove device: %o', this.id);
       }
