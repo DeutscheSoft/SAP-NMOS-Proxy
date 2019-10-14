@@ -20,6 +20,16 @@ class DynamicSet extends Events
     return this.entries.get(id);
   }
 
+  keys()
+  {
+    return this.entries.keys();
+  }
+
+  values()
+  {
+    return this.entries.values();
+  }
+
   add(id, entry, ...extra)
   {
     if (this.entries.has(id))
