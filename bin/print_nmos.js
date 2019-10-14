@@ -1,7 +1,7 @@
 const nmos = require('../src/nmos.js');
 
-const queries = new nmos.QueryResolver();
-const registries = new nmos.RegistryResolver();
+const queries = new nmos.Discovery.QueryResolver();
+const registries = new nmos.Discovery.RegistryResolver();
 
 queries.forEachAsync((api, url) => {
   const senders = api.senders();
