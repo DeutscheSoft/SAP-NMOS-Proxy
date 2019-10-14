@@ -45,15 +45,15 @@ const SDP_STR = [
 
 const sdp = new SDP(SDP_STR);
 
-const sender = device.makeSender({
+const sender = device.makeRTPSender({
   id: uuid('sender:'+sdp.id, node_id),
+  sdp: sdp,
   version: util.format('%d:%d', Date.now(), 0),
   label: '',
   description: '',
   tags: {},
   flow_id: uuid('flow:'+sdp.id, node_id),
   transport: 'urn:x-nmos:transport:rtp.mcast',
-  manifest_href: 'http://example.com/foo.sdp',
   interface_bindings: [],
   subscription: { receiver_id: null, active: false }
 });
