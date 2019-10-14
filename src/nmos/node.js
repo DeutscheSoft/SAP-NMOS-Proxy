@@ -412,7 +412,6 @@ class Node extends Resource
     const app = connect()
     .use('/x-nmos/node/v1.3/self', (req, res, next) => {
       res.end(JSON.stringify(this.info), 'application/json');
-      next();
     })
     .use('/x-nmos/node/v1.3/senders', (req, res, next) => {
       const sender_id = req.url.substr(1);
