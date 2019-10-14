@@ -114,6 +114,11 @@ class RegistrationAPI extends RestAPI
     });
   }
 
+  updateNodeHealth(node_id)
+  {
+    return this.post('health/nodes/' + node_id, {});
+  }
+
   registerDevice(info)
   {
     if (registration_schemas)

@@ -195,10 +195,7 @@ class ResourceSet extends DynamicSet
   {
     const cleanup = new Cleanup();
 
-    console.log('Registering set');
-
     cleanup.add(this.forEachAsync((entry, id) => {
-      console.log('device: %o', entry);
       cleanup.add(entry.startRegistration(api));
     }));
 
@@ -212,6 +209,17 @@ class Sender extends Resource
   {
     return this.parent;
   }
+
+  registerSelf(api)
+  {
+    return api.registerSender(this.info);
+  }
+
+  unregisterSelf(api)
+  {
+    return api.deleteSender(this.info);
+  }
+
 }
 
 class Senders extends ResourceSet
@@ -248,6 +256,14 @@ class Device extends Resource
   startChildRegistration(api)
   {
     return this.senders.startRegistration(api);
+  }
+
+  makeSender(info)
+  {
+    info = Object.assign({}, info, {
+      device_id: this.id,
+    });
+    return this.senders.make(info);
   }
 }
 
@@ -324,7 +340,6 @@ class Node extends Resource
     this.devices = new Devices();
 
     const app = connect().use('/self', (req, res, next) => {
-      console.log("got request for /self");
       res.end(JSON.stringify(this.info), 'applicatio/json'); 
     });
 
@@ -349,9 +364,7 @@ class Node extends Resource
   {
     const cleanup = new Cleanup();
 
-    console.log('registering children.');
-
-    let interval_id = setInterval(() => this.registerSelf(api), 5000);
+    let interval_id = setInterval(() => api.updateNodeHealth(this.id), 5000);
 
     cleanup.add(() => {
       clearInterval(interval_id);
