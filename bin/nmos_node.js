@@ -52,7 +52,7 @@ const sender = device.makeRTPSender({
   label: '',
   description: '',
   tags: {},
-  flow_id: uuid('flow:'+sdp.id, node_id),
+  flow_id: null,
   transport: 'urn:x-nmos:transport:rtp.mcast',
   interface_bindings: [],
   subscription: { receiver_id: null, active: false }
