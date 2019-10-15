@@ -7,7 +7,7 @@ const connect = require('connect');
 const dnssd = require('dnssd');
 
 const Cleanup = require('../event_helpers.js').Cleanup;
-const DynamicSet = require('../dynamic_set.js');
+const DynamicSet = require('../dynamic_set.js').DynamicSet;
 const RegistryResolver = require('./discovery.js').RegistryResolver;
 const SDP = require('../sdp.js');
 

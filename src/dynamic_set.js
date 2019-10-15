@@ -111,7 +111,7 @@ class DynamicSet extends Events
 
   forEach(cb, ctx)
   {
-    return this.entries.forEach(cb, ctx);
+    return this.entries.forEach((entry, id) => { cb.call(ctx, entry, id, this); });
   }
 
   forEachAsync(cb, ctx)
@@ -122,7 +122,7 @@ class DynamicSet extends Events
     this.forEach(cb, ctx);
 
     cleanup.subscribe(this, 'add', (id, entry) => {
-      cb.call(ctx, entry, id);
+      cb.call(ctx, entry, id, this);
     });
 
     this.on('close', () => cleanup.close());
@@ -136,6 +136,100 @@ class DynamicSet extends Events
     this.emit('close');
     this.entries.clear();
   }
+
+  union(...sets)
+  {
+    return new UnionSet(this, ...sets);
+  }
 }
 
-module.exports = DynamicSet;
+class UnionSet extends DynamicSet
+{
+  // internal methods
+
+  addEntryFrom(set, id, entry, ...extra)
+  {
+    if (this.has(id)) return;
+    this.add(id, entry, ...extra);
+  }
+
+  removeEntryFrom(set, id, entry, ...extra)
+  {
+    if (this.get(id) !== entry) return;
+
+    // if we find another entry in a different set with
+    // the same id, we generate an update, instead. If not,
+    // this is a delete.
+    for (let i = 0; i < this.sets.length; i++)
+    {
+      if (this.sets[i].has(id))
+      {
+        this.update(id, this.sets[i].get(id), ...extra);
+        return;
+      }
+    }
+
+    this.delete(id, entry, ...extra);
+  }
+
+  updateEntryFrom(set, id, entry, prev, ...extra)
+  {
+    if (this.get(id) !== prev) return;
+    this.update(id, entry, ...extra);
+  }
+
+  /**
+   * Remove a set from this union.
+   */
+  removeSet(set)
+  {
+    this.sets = this.sets.filter((_set) => _set !== set);
+    this.cleanup.get(set).cleanup();
+    this.cleanup.delete(set);
+    set.forEach((entry, id) => {
+      this.removeEntryFrom(set, id, entry);
+    });
+  }
+
+  /**
+   * Adds a set to this union.
+   */
+  addSet(set)
+  {
+    if (this.cleanup.has(set))
+      throw new Error('Set already added.');
+    const cleanup = new Cleanup();
+    this.cleanup.set(set, cleanup);
+    this.sets.push(set);
+    cleanup.subscribe(set, 'add', (id, entry, ...extra) => {
+      this.addEntryFrom(set, id, entry, ...extra);
+    });
+    cleanup.subscribe(set, 'update', (id, entry, prev, ...extra) => {
+      this.updateEntryFrom(set, id, entry, ...extra);
+    });
+    cleanup.subscribe(set, 'delete', (id, entry, ...extra) => {
+      this.removeEntryFrom(set, id, entry, ...extra);
+    });
+    cleanup.subscribe(set, 'close', () => this.removeSet(set));
+    set.forEach((entry, id) => this.addEntryFrom(set, id, entry));
+  }
+
+  constructor(...sets)
+  {
+    super();
+    this.cleanup = new Map();
+    this.sets = [];
+    sets.forEach((set) => this.addSet(set));
+  }
+
+  close()
+  {
+    super.close();
+    this.cleanup.forEach((cleanup) => cleanup.close());
+  }
+}
+
+module.exports = {
+  DynamicSet: DynamicSet,
+  UnionSet: UnionSet,
+};

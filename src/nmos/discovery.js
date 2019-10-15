@@ -5,7 +5,7 @@ const util = require('util');
 const dnssd = require('dnssd');
 const request = require('request-promise-native');
 
-const DynamicSet = require('../dynamic_set.js');
+const DynamicSet = require('../dynamic_set.js').DynamicSet;
 
 let registration_schemas;
 
@@ -251,8 +251,6 @@ class ResourceSet extends DynamicSet
     try
     {
       const entries = await this.fetchList();
-
-      console.log('fetching entries: found %o\n', entries);
 
       if (this.closed) return;
 
