@@ -141,8 +141,6 @@ class Resource extends Events
       }
     });
 
-    this.on('close', () => cleanup.close());
-
     (async () => {
       await retry(() => this.registerSelf(api), 3, 1000);
 
@@ -214,13 +212,9 @@ class ResourceSet extends DynamicSet
 
   startRegistration(api)
   {
-    const cleanup = new Cleanup();
-
-    cleanup.add(this.forEachAsync((entry, id) => {
-      cleanup.add(entry.startRegistration(api));
-    }));
-
-    return cleanup;
+    return this.forEachAsync((entry, id) => {
+      return entry.startRegistration(api);
+    });
   }
 }
 
@@ -517,7 +511,7 @@ class Node extends Resource
     this.http = http.createServer(app).listen(http_port, ip);
 
     this.cleanup.add(this.resolver.forEachAsync((api, url) => {
-      this.cleanup.add(this.startRegistration(api));
+      return this.startRegistration(api);
     }));
   }
 

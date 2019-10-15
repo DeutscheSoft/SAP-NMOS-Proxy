@@ -8,6 +8,7 @@ class DynamicSet extends Events
     super();
     this.entries = new Map();
     this.closed = false;
+    this.setMaxListeners(0);
   }
 
   has(id)
@@ -114,15 +115,37 @@ class DynamicSet extends Events
     return this.entries.forEach((entry, id) => { cb.call(ctx, entry, id, this); });
   }
 
-  forEachAsync(cb, ctx)
+  forEachAsync(_cb, ctx)
   {
     if (!ctx) ctx = this;
     const cleanup = new Cleanup();
 
-    this.forEach(cb, ctx);
+    const cb = (entry, id) => {
+      const _cleanup = _cb.call(ctx, entry, id, this);
+
+      if (!_cleanup) return;
+
+      if (typeof _cleanup !== 'function' &&
+          (typeof _cleanup !== 'object' || !(_cleanup instanceof Cleanup))) return;
+
+      cleanup.add(_cleanup);
+
+      this.waitForDelete(id).then(() => {
+        if (typeof _cleanup === 'function')
+        {
+          _cleanup();
+        }
+        else
+        {
+          _cleanup.close();
+        }
+      });
+    };
+
+    this.entries.forEach(cb);
 
     cleanup.subscribe(this, 'add', (id, entry) => {
-      cb.call(ctx, entry, id, this);
+      cb(entry, id);
     });
 
     this.on('close', () => cleanup.close());

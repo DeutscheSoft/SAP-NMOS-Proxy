@@ -30,8 +30,8 @@ queries_and_nodes.forEachAsync((api, id, set) => {
     stop();
     start();
   });
-  set.waitForDelete(id).then(stop);
   start();
+  return stop;
 });
 
 senders.forEachAsync(async (sender, id) => {
