@@ -47,7 +47,9 @@ catch(err)
   console.error("Failed to load nmos schemas", err);
 }
 
-
+/**
+ * Rest APIs.
+ */
 class RestAPI
 {
   constructor(url)
@@ -184,13 +186,24 @@ class RegistrationAPI extends RestAPI
   }
 }
 
-class Sender
+/**
+ * Resource classes
+ */
+class Resource
 {
+  get json()
+  {
+    return this.info;
+  }
+
   constructor(info)
   {
     this.info = info;
   }
+}
 
+class Sender extends Resource
+{
   fetchManifest()
   {
     return request({
@@ -200,15 +213,35 @@ class Sender
   }
 }
 
-class Senders extends DynamicSet
+class Device extends Resource
 {
-  constructor(query_api, poll_interval)
+}
+
+class Receiver extends Resource
+{
+}
+
+class Node extends Resource
+{
+}
+
+/**
+ * Resource lists.
+ */
+class ResourceSet extends DynamicSet
+{
+  constructor(api, interval)
   {
     super();
-    this.api = query_api;
-    this.poll_interval = poll_interval || 5000;
+    this.api = api;
+    this.interval = interval || 5000;
     this.poll_id = undefined;
     this.fetch();
+  }
+
+  create(info)
+  {
+    return new Resource(info);
   }
 
   async fetch()
@@ -217,11 +250,13 @@ class Senders extends DynamicSet
     
     try
     {
-      const senders = await this.api.fetchSenders();
+      const entries = await this.fetchList();
+
+      console.log('fetching entries: found %o\n', entries);
 
       if (this.closed) return;
 
-      senders.forEach((info) => {
+      entries.forEach((info) => {
         const id = info.id;
 
         const prev = this.get(id);
@@ -229,11 +264,11 @@ class Senders extends DynamicSet
         if (prev)
         {
           if (prev.version !== info.version)
-            this.update(id, new Sender(info));
+            this.update(id, this.create(info));
         }
         else
         {
-          this.add(id, new Sender(info));
+          this.add(id, this.create(info));
         }
       });
     }
@@ -241,10 +276,10 @@ class Senders extends DynamicSet
     {
       if (this.closed) return;
 
-      console.error('fetching senders failed:', err);
+      console.error('fetching entries failed:', err);
     }
 
-    this.poll_id = setTimeout(() => this.fetch(), this.poll_interval);
+    this.poll_id = setTimeout(() => this.fetch(), this.interval);
   }
 
   close()
@@ -255,7 +290,93 @@ class Senders extends DynamicSet
   }
 }
 
-class QueryAPI extends RestAPI
+class Nodes extends ResourceSet
+{
+  fetchList()
+  {
+    return this.api.fetchNodes();
+  }
+
+  create(info)
+  {
+    return new Node(info);
+  }
+}
+
+class Senders extends ResourceSet
+{
+  fetchList()
+  {
+    return this.api.fetchSenders();
+  }
+
+  create(info)
+  {
+    return new Sender(info);
+  }
+}
+
+class Devices extends ResourceSet
+{
+  fetchList()
+  {
+    return this.api.fetchDevices();
+  }
+
+  create(info)
+  {
+    return new Device(info);
+  }
+}
+
+class Receivers extends ResourceSet
+{
+  fetchList()
+  {
+    return this.api.fetchReceivers();
+  }
+
+  create(info)
+  {
+    return new Receiver(info);
+  }
+}
+
+// Base class used by both query and node api (which are almost identical).
+class QueryAPIBase extends RestAPI
+{
+  fetchSenders()
+  {
+    return this.get('senders');
+  }
+
+  fetchReceivers()
+  {
+    return this.get('receivers');
+  }
+
+  fetchDevices()
+  {
+    return this.get('devices');
+  }
+
+  senders(interval)
+  {
+    return new Senders(this, interval);
+  }
+
+  receivers(interval)
+  {
+    return new Receivers(this, interval);
+  }
+
+  devices(interval)
+  {
+    return new Devices(this, interval);
+  }
+}
+
+class QueryAPI extends QueryAPIBase
 {
   constructor(url)
   {
@@ -267,19 +388,22 @@ class QueryAPI extends RestAPI
     return this.get('nodes');
   }
 
-  fetchSenders()
+  nodes(interval)
   {
-    return this.get('senders');
+    return new Nodes(this, interval);
+  }
+}
+
+class NodeAPI extends QueryAPIBase
+{
+  constructor(url)
+  {
+    super(url + '/x-nmos/node/v1.3/');
   }
 
-  fetchReceivers()
+  fetchSelf()
   {
-    return this.get('receivers');
-  }
-
-  senders(poll_interval)
-  {
-    return new Senders(this, poll_interval);
+    return this.get('self');
   }
 }
 
@@ -362,7 +486,16 @@ class RegistryResolver extends Resolver
   }
 }
 
+class NodeResolver extends Resolver
+{
+  constructor(options)
+  {
+    super(options, NodeAPI, 'nmos-node');
+  }
+}
+
 module.exports = {
   QueryResolver: QueryResolver,
   RegistryResolver: RegistryResolver,
+  NodeResolver: NodeResolver,
 };
