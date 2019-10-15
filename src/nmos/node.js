@@ -149,7 +149,7 @@ class Resource extends Events
       cleanup.subscribe(this, 'update', async () => {
         try
         {
-          await retry(() => registerSelf(api), 3, 1000);
+          await retry(() => this.registerSelf(api), 3, 1000);
         }
         catch (err)
         {
