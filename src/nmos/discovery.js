@@ -430,15 +430,16 @@ class Resolver extends DynamicSet
   {
     super();
 
-    this.browser = new dnssd.Browser(dnssd.tcp('nmos-query'), options);
+    this.browser = new dnssd.Browser(dnssd.tcp(dnssd_type), options);
 
     this.browser.on('serviceUp', (info) => {
       try
       {
         const url = url_from_service(info);
         const api = new api_class(url);
+        const id = info.fullname;
 
-        this.add(url, api);
+        this.add(id, api);
       }
       catch (error)
       {
@@ -448,9 +449,12 @@ class Resolver extends DynamicSet
     this.browser.on('serviceDown', (info) => {
       try
       {
-        if (this.has(url))
+        const url = url_from_service(info);
+        const id = info.fullname;
+
+        if (this.has(id))
         {
-          this.delete(url);
+          this.delete(id);
         }
       }
       catch (error)
