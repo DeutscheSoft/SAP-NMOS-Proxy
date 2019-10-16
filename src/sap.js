@@ -392,6 +392,7 @@ class Announcements extends DynamicSet
     super();
     this.port = port;
     this._timeouts = new Map();
+    this.ignores = null;
     this._on_message = (packet) => {
       if (!packet.has_sdp_payload()) return;
 
@@ -401,6 +402,10 @@ class Announcements extends DynamicSet
       if (packet.is_announcement())
       {
         const sdp = packet.sdp;
+
+        if (this.ignores && this.ignores.has(sdp))
+          return;
+
         const timeout = () => {
           this._timeouts.delete(id);
           this.delete(id, packet);
@@ -439,6 +444,11 @@ class Announcements extends DynamicSet
   {
     super.close();
     this.port.removeEventListener('message', this._on_message);
+  }
+
+  ignoreFrom(ownAnnouncements)
+  {
+    this.ignores = ownAnnouncements;
   }
 }
 
