@@ -6,6 +6,7 @@ const dnssd = require('dnssd');
 const request = require('request-promise-native');
 
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
+const UnionSet = require('../dynamic_set.js').UnionSet;
 
 let registration_schemas;
 
@@ -569,8 +570,61 @@ class NodeResolver extends Resolver
   }
 }
 
+function QueryAndNodeResolver(options)
+{
+  const queries = new QueryResolver(options);
+  const nodes = new NodeResolver(options);
+
+  const queries_and_nodes = queries.union(nodes);
+
+  queries_and_nodes.on('close', () => {
+    queries.close();
+    nodes.close();
+  });
+
+  return queries_and_nodes;
+}
+
+function AllSenders(options)
+{
+  const senders = new UnionSet();
+  const queries_and_nodes = QueryAndNodeResolver(options);
+
+  const cleanup = queries_and_nodes.forEachAsync((api, id, set) => {
+    let _senders;
+
+    const start = () => {
+      api = set.get(id);
+      _senders = api.senders();
+      senders.addSet(_senders);
+    };
+    const stop = () => {
+      senders.removeSet(_senders);
+      _senders.close();
+      _senders = null;
+      api = null;
+    };
+
+    set.waitForUpdate(id).then(() => {
+      stop();
+      start();
+    });
+    start();
+    return stop;
+  });
+
+  senders.on('close', () => {
+    cleanup.close();
+    queries_and_nodes.close();
+  });
+
+  return senders;
+}
+
 module.exports = {
   QueryResolver: QueryResolver,
   RegistryResolver: RegistryResolver,
   NodeResolver: NodeResolver,
+  QueryAndNodeResolver: QueryAndNodeResolver,
+  AllSenders: AllSenders,
 };
