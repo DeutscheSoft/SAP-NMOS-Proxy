@@ -255,7 +255,7 @@ class Port extends Events
         this.emit('error', e);
       }
     });
-    this.socket.bind(9875, () => {
+    this.socket.bind(9875, iface || '0.0.0.0', () => {
       if (iface)
         this.socket.addMembership('239.255.255.255', iface);
       else
