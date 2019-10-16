@@ -1,9 +1,26 @@
+#!/usr/bin/env node
+
+const argparse = require('argparse');
 const uuid = require('uuid/v5');
 
 const Interfaces = require('../src/interfaces.js').Interfaces;
 const NMOS = require('../src/nmos.js');
 const SDP = require('../src/sdp.js');
 const SAP = require('../src/sap.js');
+
+const argumentParser = new argparse.ArgumentParser({
+  version: '0.0.1',
+  addHelp:true,
+  description: 'SAP to NMOS proxy.'
+});
+
+argumentParser.addArgument(
+  [ '-i', '--interface' ],
+  {
+    help: 'Network interface to use. Either interface name or ip address.'
+  }
+);
+const args = argumentParser.parseArgs();
 
 function interface_start_address(interface)
 {
@@ -18,7 +35,11 @@ function interface_start_address(interface)
   return ip.join('.');
 }
 
-const interfaces = new Interfaces();
+const interfaces = new Interfaces().filter((ifname, interface) => {
+  return (args.interface === null ||
+          args.interface === ifname ||
+          args.interface === interface.address);
+});
 
 // The namespace ID of the nmos proxy. We use this as the base of
 // all registrations. It will be parametrized using
@@ -27,6 +48,8 @@ const interfaces = new Interfaces();
 const PROXY_NAMESPACE = 'd6fe88a0-aac7-4f53-8de3-9046fcc4b766';
 
 interfaces.forEachAsync((network_interface, ifname) => {
+
+  console.log('Starting proxy on interface %s', ifname);
 
   const ip = network_interface.address;
 

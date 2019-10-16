@@ -17,6 +17,7 @@
     "ajv": "^6.10.2"
   },
   "dependencies": {
+    "argparse": "^1.0.10",
     "connect": "^3.7.0",
     "dnssd": "^0.4.1",
     "request": "^2.88.0",
