@@ -59,16 +59,19 @@ class Packet
     this.auth = auth;
     this.hash = hash;
     this.payload_type = o.payload_type || 'application/sdp';
-    this.payload = o.payload;
+    this.payload = o.payload.toString();
     this.deletion = !!(o.deletion);
 
     if (this.has_sdp_payload())
     {
-      this.sdp = new SDP(o.payload);
+      if (o.payload instanceof SDP)
+        this.sdp = o.payload;
+      else
+        this.sdp = new SDP(o.payload);
     }
     else
     {
-      this.sdp = null
+      this.sdp = null;
     }
   }
 
@@ -225,6 +228,61 @@ class Packet
   }
 }
 
+class Hasher {
+    constructor() {
+        this.sdps = new Map();
+        this.used_ids = new Map();
+        this.cnt = Math.floor(Math.random() * 0xffff);
+    }
+
+    get_id() {
+        if (this.sdps.size == 0xfffe)
+            throw new Error('All IDs used up.');
+
+        while (this.used_ids.has(this.cnt
+                                 = Math.max((this.cnt + 1) & 0xffff, 1)));
+
+        return this.cnt;
+    }
+
+    record(sdp) {
+        let hash = this.sdps.get(sdp.toString());
+        let id;
+
+        if (hash)
+            return hash;
+
+        id = this.get_id();
+        this.used_ids.set(id, sdp.toString());
+        this.sdps.set(sdp.toString(), id);
+
+        return id;
+    }
+
+    expire(hashOrSdp) {
+        let ret;
+
+        if (typeof hashOrSdp === 'number') {
+            if (!this.used_ids.has(hashOrSdp))
+                throw new Error('Unknown id');
+
+            ret = hashOrSdp;
+            this.sdps.delete(this.used_ids.get(hashOrSdp));
+            this.used_ids.delete(hashOrSdp);
+        } else if (hashOrSdp instanceof SDP) {
+            if (!this.sdps.has(hashOrSdp.toString()))
+                throw new Error("Unknown SDP");
+
+            this.used_ids.delete(ret = this.sdps.get(hashOrSdp.toString()));
+            this.sdps.delete(hashOrSdp.toString());
+        } else {
+            throw new Error("Called with unknown type");
+        }
+
+        return ret;
+    }
+}
+
 /**
  * Port class which allows listening for SAP packets.
  */
@@ -232,7 +290,11 @@ class Port extends Events
 {
   constructor(iface)
   {
+    let waiters;
+
     super();
+    this.waiters = [];
+    this.hasher = new Hasher();
     this.socket = UDP.createSocket('udp4');
     this.socket.on('message', (msg, rinfo) => {
       try
@@ -257,15 +319,60 @@ class Port extends Events
     });
     this.socket.bind(9875, iface || '0.0.0.0', () => {
       if (iface)
+      {
         this.socket.addMembership('239.255.255.255', iface);
+        this.socket.setMulticastInterface(iface);
+      }
       else
         this.socket.addMembership('239.255.255.255');
+
+      waiters = this.waiters;
+      this.waiters = null;
+
+      waiters.forEach(cb => {
+        try
+        {
+          cb(this);
+        }
+        catch (e)
+        {
+        }
+      });
     });
+  }
+
+  announce(sdp) {
+    const sap = new Packet({
+      source: sdp.origin_addr,
+      hash: this.hasher.record(sdp),
+      payload: sdp,
+    });
+
+    this.socket.send(sap.toBuffer(), 9875, '239.255.255.255');
+  }
+
+  retract(sdp) {
+    const sap = new Packet({
+      source: sdp.origin_addr,
+      hash: this.hasher.expire(sdp),
+      payload: sdp,
+      deletion: true,
+    });
+
+    this.socket.send(sap.toBuffer(), 9875, '239.255.255.255');
   }
 
   close()
   {
     this.socket.close();
+  }
+
+  onReady()
+  {
+    if (this.waiters)
+      return new Promise(ok => this.waiters.push(ok));
+    else
+      return Promise.resolve(this);
   }
 }
 
