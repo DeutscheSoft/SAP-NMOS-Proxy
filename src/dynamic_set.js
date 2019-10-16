@@ -164,6 +164,11 @@ class DynamicSet extends Events
   {
     return new UnionSet(this, ...sets);
   }
+
+  filter(cb)
+  {
+    return new FilteredSet(this, cb);
+  }
 }
 
 class UnionSet extends DynamicSet
@@ -252,7 +257,67 @@ class UnionSet extends DynamicSet
   }
 }
 
+class FilteredSet extends DynamicSet
+{
+  constructor(set, filter)
+  {
+    super();
+    this.set = set;
+    this.filter = filter;
+    const cleanup = new Cleanup();
+
+    this.cleanup = cleanup;
+
+    cleanup.subscribe(set, 'add', (id, entry, ...extra) => {
+      if (filter(id, entry))
+      {
+        this.add(id, entry);
+      }
+    });
+    cleanup.subscribe(set, 'update', (id, entry, prev, ...extra) => {
+      const was = this.has(id);
+      const will = filter(id, entry);
+
+      if (!was)
+      {
+        if (will)
+        {
+          this.add(id, entry);
+        }
+      }
+      else
+      {
+        if (will)
+        {
+          this.update(id, entry);
+        }
+        else
+        {
+          this.delete(id);
+        }
+      }
+    });
+    cleanup.subscribe(set, 'delete', (id, entry, ...extra) => {
+      if (this.has(id))
+        this.delete(id);
+    });
+    cleanup.subscribe(set, 'close', () => this.close());
+
+    set.forEach((entry, id) => {
+      if (filter(id, entry))
+        this.add(id, entry);
+    });
+  }
+
+  close()
+  {
+    this.cleanup.close();
+    super.close();
+  }
+}
+
 module.exports = {
   DynamicSet: DynamicSet,
   UnionSet: UnionSet,
+  FilteredSet: FilteredSet,
 };

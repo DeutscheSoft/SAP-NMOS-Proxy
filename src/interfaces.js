@@ -10,7 +10,7 @@ class Interfaces extends DynamicSet
     if (!filter) filter = (ifname, info) => {
       return !info.internal && info.family === 'IPv4';
     };
-    this.filter = filter;
+    this._filter = filter;
     this.poll_id = setInterval(() => this.fetch(), interval || 5000);
     this.fetch();
   }
@@ -29,7 +29,7 @@ class Interfaces extends DynamicSet
       {
         const info = addresses[i];
 
-        if (!this.filter(ifname, info)) continue;
+        if (!this._filter(ifname, info)) continue;
 
         found.add(ifname);
 
