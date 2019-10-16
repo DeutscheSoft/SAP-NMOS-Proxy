@@ -368,24 +368,17 @@ class Node extends Resource
   constructor(options)
   {
     const ip = options.ip || get_first_public_ip();
-    const http_port = options.http_port || 80;
+    const http_port = options.http_port;
 
     const info = Object.assign({
       version: util.format('%d:%d', Date.now(), 0),
       label: '',
       description: '',
       tags: {},
-      href: 'http://' + ip + ':' + http_port,
       caps: {},
       api: {
         "versions": [ "v1.3" ],
-        "endpoints": [
-          {
-            "host": ip,
-            "port": http_port,
-            "protocol": "http",
-          }
-        ],
+        "endpoints": [ ],
       },
       services: [],
       clocks: [],
@@ -398,8 +391,6 @@ class Node extends Resource
 
     super(null, info);
 
-    this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), http_port);
-    this.resolver = new RegistryResolver(dnssd_options);
     this.cleanup = new Cleanup();
     this.devices = new Devices(this);
 
@@ -508,11 +499,31 @@ class Node extends Resource
       }
     });
 
-    this.http = http.createServer(app).listen(http_port, ip);
+    this.http = http.createServer(app);
+    this.http.listen({
+        port: http_port,
+        host: ip,
+        exclusive: true,
+      },
+      () => {
+        const port = this.http.address().port;
+        console.log('http server running on port %d', port);
+        this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port);
+        info.api.endpoints = info.api.endpoints.concat([{
+          "host": ip,
+          "port": port,
+          "protocol": "http",
+        }]);
+        info.href = util.format('http://%s:%d/', ip, port);
+        this.update(info);
+        this.resolver = new RegistryResolver(dnssd_options);
+        this.cleanup.add(this.resolver.forEachAsync((api, url) => {
+          return this.startRegistration(api);
+        }));
+    });
 
-    this.cleanup.add(this.resolver.forEachAsync((api, url) => {
-      return this.startRegistration(api);
-    }));
+    this.resolver = null;
+    this.advertisement = null;
   }
 
   registerSelf(api)
