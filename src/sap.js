@@ -13,6 +13,18 @@ const DynamicSet = require('./dynamic_set.js').DynamicSet;
 const AD_INTERVAL = 30;
 const NO_OF_ADS = 10; // Timeout after this amount has been missed.
 
+function sleep(duration) {
+    return new Promise(resolve => setTimeout(resolve, duration * 1000));
+}
+
+function whenOne(them) {
+    return new Promise(resolve => {
+        them.forEach((promise, idx) => {
+            promise.then(() => resolve(idx), () => resolve(idx));
+        });
+    });
+}
+
 
 function read_cstring(buf, pos)
 {
@@ -452,7 +464,66 @@ class Announcements extends DynamicSet
   }
 }
 
+class OwnAnnouncements extends DynamicSet {
+    constructor() {
+        super();
+        this.sdp_strings = new Map();
+    }
+
+    announceToPort(port) {
+        const cleanup = new Cleanup();
+        cleanup.add(this.forEachAsync(async (ig, sdp) => {
+            const delete_p = this.waitForDelete(sdp);
+            const cleanup_p = cleanup.whenClosed();
+
+            port.announce(sdp);
+
+            do {
+                switch (await whenOne([ delete_p, sleep(AD_INTERVAL),
+                                      cleanup_p ])) {
+                    case 0: // delete
+                    case 2:
+                        port.retract(sdp);
+                        return;
+                    case 1:
+                        port.announce(sdp);
+                        break;
+                }
+            } while (true);
+        }));
+
+        return cleanup;
+    }
+
+    add(sdp) {
+        let s = sdp.toString();
+
+        if (this.sdp_strings.has(s))
+            throw new Error("Already have this SDP.");
+
+        this.sdp_strings.set(s, sdp);
+        super.add(sdp);
+    }
+
+    delete(sdp) {
+        super.delete(sdp);
+        this.sdp_strings.delete(sdp.toString());
+    }
+
+    has(sdp) {
+        sdp = sdp.toString();
+
+        if (!this.sdp_strings.has(sdp))
+            return false;
+
+        sdp = this.sdp_strings.get(sdp);
+
+        return super.has(sdp);
+    }
+}
+
 module.exports = {
   Port: Port,
   Announcements: Announcements,
+  OwnAnnouncements: OwnAnnouncements,
 };
