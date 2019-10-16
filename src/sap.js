@@ -377,6 +377,7 @@ class Port extends Events
   close()
   {
     this.socket.close();
+    this.emit('close');
   }
 
   onReady()
@@ -472,6 +473,7 @@ class OwnAnnouncements extends DynamicSet {
 
     announceToPort(port) {
         const cleanup = new Cleanup();
+        cleanup.subscribe(port, 'close', () => cleanup.close());
         cleanup.add(this.forEachAsync(async (ig, sdp) => {
             const delete_p = this.waitForDelete(sdp);
             const cleanup_p = cleanup.whenClosed();
@@ -483,7 +485,11 @@ class OwnAnnouncements extends DynamicSet {
                                       cleanup_p ])) {
                     case 0: // delete
                     case 2:
-                        port.retract(sdp);
+                        // the port may be closed.
+                        try {
+                            port.retract(sdp);
+                        } catch (e) {
+                        }
                         return;
                     case 1:
                         port.announce(sdp);
