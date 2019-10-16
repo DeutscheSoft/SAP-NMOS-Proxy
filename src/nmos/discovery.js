@@ -413,10 +413,10 @@ class NodeAPI extends QueryAPIBase
   }
 }
 
-function url_from_service(info)
+function url_from_service(info, filter)
 {
   const port = info.port;
-  const host = info.addresses.filter((ip) => net.isIPv4(ip))[0];
+  const host = info.addresses.filter((ip) => net.isIPv4(ip) && filter(ip))[0];
   const proto = info.txt.api_proto;
 
   if (-1 === info.txt.api_ver.split(',').indexOf('v1.3'))
@@ -427,6 +427,21 @@ function url_from_service(info)
   return util.format('%s://%s:%d', proto, host, port);
 }
 
+function ip_mask(ip, netmask)
+{
+  if (typeof(ip) === 'string')
+  {
+    ip = ip.split('.').map((v) => parseInt(v));
+  }
+
+  if (typeof(netmask) === 'string')
+  {
+    netmask = netmask.split('.').map((v) => parseInt(v));
+  }
+
+  return ip.map((v, i) => v & netmask[i]).join('.');
+}
+
 class Resolver extends DynamicSet
 {
   get apis()
@@ -434,16 +449,66 @@ class Resolver extends DynamicSet
     return this.entries;
   }
 
+  isLocalIP(ip)
+  {
+    if (!this.interface) return true;
+
+    if (this.netmask === null)
+    {
+      const interfaces = require('os').networkInterfaces();
+
+      for (let ifname in interfaces)
+      {
+        const addresses = interfaces[ifname];
+
+        for (let i = 0; i < addresses.length; i++)
+        {
+          if (addresses[i].address === this.interface)
+          {
+            this.netmask = addresses[i].netmask;
+          }
+        }
+      }
+
+      if (this.netmask === null)
+      {
+        console.error('Could not find netmask for ip %o', this.interface);
+        return;
+      }
+
+      this.netmask = this.netmask.split('.').map((v) => parseInt(v));
+    }
+
+    return ip_mask(this.interface, this.netmask) === ip_mask(ip, this.netmask);
+  }
+
+  isLocalService(info)
+  {
+    if (!this.interface) return true;
+
+    const service_ips = info.addresses.filter((addr) => net.isIPv4(addr));
+
+    for (let i = 0; i < service_ips.length; i++)
+    {
+      if (this.isLocalIP(service_ips[i])) return true;
+    }
+
+    return false;
+  }
+
   constructor(options, api_class, dnssd_type)
   {
     super();
-
+    this.interface = options ? options.interface : null;
+    this.netmask = null;
     this.browser = new dnssd.Browser(dnssd.tcp(dnssd_type), options);
 
     this.browser.on('serviceUp', (info) => {
       try
       {
-        const url = url_from_service(info);
+        if (!this.isLocalService(info)) return;
+
+        const url = url_from_service(info, (ip) => this.isLocalIP(ip));
         const api = new api_class(url);
         const id = info.fullname;
 
