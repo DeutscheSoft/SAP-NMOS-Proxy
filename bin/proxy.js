@@ -7,6 +7,7 @@ const Interfaces = require('../src/interfaces.js').Interfaces;
 const NMOS = require('../src/nmos.js');
 const SDP = require('../src/sdp.js');
 const SAP = require('../src/sap.js');
+const Cleanup = require('../src/event_helpers.js').Cleanup;
 
 const argumentParser = new argparse.ArgumentParser({
   version: '0.0.1',
@@ -70,11 +71,27 @@ interfaces.forEachAsync((network_interface, ifname) => {
 
   const all_senders = NMOS.Discovery.AllSenders({ interface: ip });
 
-  all_senders.forEachAsync((sender) => {
+  const cleanup = new Cleanup();
+
+  // TODO: handle loops in a useful way
+
+  cleanup.add(all_senders.forEachAsync((sender) => {
     console.log('Found NMOS sender: %o\n', sender);
-  });
+    // TODO: create SAP announcement on this interface
+    return () => {
+      // TODO: destroy SAP announcement on this interface
+    };
+  }));
+
+  cleanup.add(sap_announcements.forEachAsync((sdp, id) => {
+    // TODO: create NMOS sender
+    return () => {
+      // TODO: delete NMOS node
+    };
+  }));
 
   return () => {
+    cleanup.close();
     all_senders.close();
     node.close();
     sap_announcements.close();
