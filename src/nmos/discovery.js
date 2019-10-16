@@ -251,11 +251,14 @@ class ResourceSet extends DynamicSet
     try
     {
       const entries = await this.fetchList();
+      const found = new Set();
 
       if (this.closed) return;
 
       entries.forEach((info) => {
         const id = info.id;
+
+        found.add(id);
 
         const prev = this.get(id);
 
@@ -268,6 +271,11 @@ class ResourceSet extends DynamicSet
         {
           this.add(id, this.create(info));
         }
+      });
+
+      this.forEach((entry, id) => {
+        if (!found.has(id))
+          this.delete(id);
       });
     }
     catch (err)
