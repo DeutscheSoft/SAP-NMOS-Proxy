@@ -1,6 +1,18 @@
 const Events = require('events');
 const Cleanup = require('./event_helpers.js').Cleanup;
 
+function once(cb)
+{
+  let called = false;
+
+  return (...args) => {
+    if (called) return;
+    called = true;
+
+    return cb(...args);
+  };
+}
+
 class DynamicSet extends Events
 {
   constructor()
@@ -83,6 +95,7 @@ class DynamicSet extends Events
     if (!this.entries.has(id))
       return Promise.reject(new Error('Unknown ID.'));
 
+
     return new Promise((resolve, reject) => {
       const cleanup = new Cleanup();
 
@@ -91,10 +104,11 @@ class DynamicSet extends Events
         cleanup.close();
         resolve(id)
       });
-      cleanup.subscribe(this, 'close', () => {
-        cleanup.close();
-        reject(new Error('closed.'));
-      });
+      if (event !== 'close')
+        cleanup.subscribe(this, 'close', () => {
+          cleanup.close();
+          reject(new Error('closed.'));
+        });
     });
   }
 
@@ -146,12 +160,15 @@ class DynamicSet extends Events
     const cleanup = new Cleanup();
 
     const cb = (entry, id) => {
-      const _cleanup = _cb.call(ctx, entry, id, this);
+      let _cleanup = _cb.call(ctx, entry, id, this);
 
       if (!_cleanup) return;
 
-      if (typeof _cleanup !== 'function' &&
-          (typeof _cleanup !== 'object' || !(_cleanup instanceof Cleanup))) return;
+      if (typeof _cleanup === 'function')
+      {
+        _cleanup = once(_cleanup);
+      }
+      else if ((typeof _cleanup !== 'object' || !(_cleanup instanceof Cleanup))) return;
 
       cleanup.add(_cleanup);
 
@@ -164,7 +181,7 @@ class DynamicSet extends Events
         {
           _cleanup.close();
         }
-      });
+      }, () => {});
     };
 
     this.entries.forEach(cb);
@@ -236,8 +253,12 @@ class UnionSet extends DynamicSet
    */
   removeSet(set)
   {
+    if (!this.cleanup.has(set))
+    {
+      throw Error('Unknown set: ' + set);
+    }
     this.sets = this.sets.filter((_set) => _set !== set);
-    this.cleanup.get(set).cleanup();
+    this.cleanup.get(set).close();
     this.cleanup.delete(set);
     set.forEach((entry, id) => {
       this.removeEntryFrom(set, id, entry);

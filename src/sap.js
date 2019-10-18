@@ -456,7 +456,7 @@ class Announcements extends DynamicSet
   close()
   {
     super.close();
-    this.port.removeEventListener('message', this._on_message);
+    this.port.removeListener('message', this._on_message);
   }
 
   ignoreFrom(ownAnnouncements)
@@ -510,12 +510,13 @@ class OwnAnnouncements extends DynamicSet {
             throw new Error("Already have this SDP.");
 
         this.sdp_strings.set(s, sdp);
-        super.add(sdp);
+        super.add(s, sdp);
     }
 
     delete(sdp) {
-        super.delete(sdp);
-        this.sdp_strings.delete(sdp.toString());
+        const s = sdp.toString();
+        super.delete(s);
+        this.sdp_strings.delete(s);
     }
 
     has(sdp) {

@@ -32,7 +32,7 @@ try
       const schema = JSON.parse(fs.readFileSync(fname, { encoding: 'utf8' }));
       registration_schemas.addSchema(schema, name);
       n++;
-    } 
+    }
     catch (err)
     {
       console.error("Failed to parse schema %o:", fname);
@@ -70,7 +70,7 @@ class RestAPI
     const response = await request({
       uri: this.resolve(path),
       method: 'GET'
-    }); 
+    });
 
     return JSON.parse(response);
   }
@@ -82,10 +82,18 @@ class RestAPI
       method: 'POST',
       json: true,
       body: body,
-    }); 
+    });
 
     //console.log("RESPONSE: %o", response);
     return response;
+  }
+
+  async delete(path)
+  {
+    return await request({
+      uri: this.resolve(path),
+      method: 'DELETE',
+    });
   }
 }
 
@@ -115,6 +123,11 @@ class RegistrationAPI extends RestAPI
       type: 'node',
       data: info,
     });
+  }
+
+  deleteNode(info)
+  {
+    return this.delete('resource/nodes/' + info.id);
   }
 
   updateNodeHealth(node_id)
@@ -248,7 +261,7 @@ class ResourceSet extends DynamicSet
   async fetch()
   {
     this.poll_id = undefined;
-    
+
     try
     {
       const entries = await this.fetchList();
@@ -608,7 +621,7 @@ function AllSenders(options)
     set.waitForUpdate(id).then(() => {
       stop();
       start();
-    });
+    }, () => {});
     start();
     return stop;
   });

@@ -137,7 +137,9 @@ class Resource extends Events
       {
         await this.unregisterSelf(api);
       } catch (err) {
-        console.error('Failed to remove device: %o', this.id);
+        console.log('Failed to remove device: %o', this.id);
+        console.error(err);
+
       }
     });
 
@@ -568,9 +570,11 @@ class Node extends Resource
 
   close()
   {
-    this.resolver.close();
+    if (this.resolver)
+      this.resolver.close();
     this.http.close();
-    this.advertisement.close();
+    if (this.advertisement)
+      this.advertisement.stop();
     this.cleanup.close();
   }
 

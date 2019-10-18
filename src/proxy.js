@@ -82,10 +82,12 @@ class Proxy extends Events
             try
             {
               const _sdp = new SDP(await sender.fetchManifest());
-              if (closed) return;
-              this.sapAnnounce.add(_sdp);
-              this.emit('log', 'Created SAP announcement for %o', _sdp.id);
-              sdp = _sdp;
+              if (!closed)
+              {
+                this.sapAnnounce.add(_sdp);
+                this.emit('log', 'Created SAP announcement for %o', _sdp.id);
+                sdp = _sdp;
+              }
             }
             catch (err)
             {
@@ -118,7 +120,10 @@ class Proxy extends Events
       return () => {
         closed = true;
         if (sdp)
+        {
           this.sapAnnounce.delete(sdp);
+          sdp = null;
+        }
       };
     }));
 

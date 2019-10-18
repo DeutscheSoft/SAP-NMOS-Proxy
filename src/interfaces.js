@@ -61,6 +61,7 @@ class Interfaces extends DynamicSet
 
   close()
   {
+    clearInterval(this.poll_id);
   }
 }
 
