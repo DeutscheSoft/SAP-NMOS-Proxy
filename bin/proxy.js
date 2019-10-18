@@ -4,7 +4,7 @@ const argparse = require('argparse');
 const uuid = require('uuid/v5');
 
 const Interfaces = require('../src/interfaces.js').Interfaces;
-const Proxy = require('../src/proxy.js');
+const Proxy = require('../').Proxy;
 
 const argumentParser = new argparse.ArgumentParser({
   version: '0.0.1',
