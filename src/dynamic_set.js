@@ -110,6 +110,31 @@ class DynamicSet extends Events
     return this.entries.get(id);
   }
 
+  async waitForChange(id)
+  {
+    if (!this.entries.has(id))
+      return Promise.reject(new Error('Unknown ID.'));
+
+    return new Promise((resolve, reject) => {
+      const cleanup = new Cleanup();
+
+      cleanup.subscribe(this, 'update', (_id, entry) => {
+        if (_id !== id) return;
+        cleanup.close();
+        resolve(entry)
+      });
+      cleanup.subscribe(this, 'delete', (_id, entry) => {
+        if (_id !== id) return;
+        cleanup.close();
+        reject(new Error('deleted.'));
+      });
+      cleanup.subscribe(this, 'close', () => {
+        cleanup.close();
+        reject(new Error('closed.'));
+      });
+    });
+  }
+
   forEach(cb, ctx)
   {
     return this.entries.forEach((entry, id) => { cb.call(ctx, entry, id, this); });
