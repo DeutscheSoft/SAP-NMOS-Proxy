@@ -41,7 +41,7 @@ try
     }
   });
 
-  console.log("Compiled %d schemas.", n);
+  //console.log("Compiled %d schemas.", n);
 }
 catch(err)
 {
@@ -84,7 +84,7 @@ class RestAPI
       body: body,
     }); 
 
-    console.log("RESPONSE: %o", response);
+    //console.log("RESPONSE: %o", response);
     return response;
   }
 }
