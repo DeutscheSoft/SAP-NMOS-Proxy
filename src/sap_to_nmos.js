@@ -71,7 +71,7 @@ function SDP_to_NMOS_sender(sdp)
   const info = {
     id: id,
     version: util.format('%d:%d', Date.now(), 0),
-    label: '',
+    label: sdp.name,
     description: '',
     tags: {},
     flow_id: id,

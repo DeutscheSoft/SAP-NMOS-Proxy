@@ -61,7 +61,7 @@ interfaces.forEachAsync((network_interface, ifname) => {
     ip: ip,
     info: {
       id: node_id,
-      label: 'SAP-to-NMOS proxy',
+      label: 'SAP to NMOS proxy',
       description: 'This node proxies between SAP and NMOS.',
     },
   });
@@ -75,6 +75,7 @@ interfaces.forEachAsync((network_interface, ifname) => {
 
   const cleanup = new Cleanup();
 
+  // NMOS -> SAP
   cleanup.add(all_senders.forEachAsync((sender, sender_id) => {
     console.log('Found NMOS sender: %o\n', sender);
 
@@ -130,11 +131,82 @@ interfaces.forEachAsync((network_interface, ifname) => {
     };
   }));
 
-  cleanup.add(sap_announcements.forEachAsync((sdp, id) => {
-    console.log('SAP: %o', sdp);
-    // TODO: create NMOS sender
+  // SAP -> NMOS
+
+  const sdpToNMOSDevice = (sdp) => {
+    const id = uuid('device:'+sdp.origin_addr, node_id);
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name.split(':')[0].trim(),
+      description: '',
+      tags: {},
+      type: "urn:x-nmos:device:audio",
+      node_id: PROXY_NAMESPACE,
+      senders: [],
+      receivers: [],
+      controls: [],
+    };
+
+    return info;
+  };
+
+  const sdpToNMOSSender = (sdp) => {
+    const id = uuid('sender:'+sdp.id, node_id);
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name,
+      sdp: sdp,
+      description: '',
+      tags: {},
+      flow_id: id,
+      transport: 'urn:x-nmos:transport:rtp.mcast',
+      interface_bindings: [],
+      subscription: { receiver_id: null, active: false }
+    };
+
+    return info;
+  };
+
+  cleanup.add(sap_announcements.forEachAsync((sdp, sdp_id) => {
+    console.log('Observed SAP announcement %o', sdp);
+    let closed = false;
+
+    let device = node.makeDevice(sdpToNMOSDevice(sdp));
+    console.log('Created NMOS device %o', device.json);
+
+    let sender = device.makeRTPSender(sdpToNMOSSender(sdp));
+    console.log('Created NMOS sender %o', sender.json);
+
+    const task = async () => {
+      do
+      {
+        try
+        {
+          sdp = await sap_announcements.waitForChange(sdp_id);
+        }
+        catch (err)
+        {
+          // was deleted
+          return;
+        }
+
+        device.update(sdpToNMOSDevice(sdp));
+        sender.update(sdpToNMOSSender(sdp));
+      } while (true);
+    };
+
+    task();
+
     return () => {
-      // TODO: delete NMOS node
+      closed = true;
+      sender.close();
+      // FIXME: devices are shared. we could delete them using refcounting
+      // but until we have that implemented we just keep it around.
+      // device.close();
     };
   }));
 
@@ -144,5 +216,6 @@ interfaces.forEachAsync((network_interface, ifname) => {
     node.close();
     sap_announcements.close();
     sap_port.close();
+    ownAnnouncements.close();
   };
 });
