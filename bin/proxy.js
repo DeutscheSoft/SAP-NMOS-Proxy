@@ -68,22 +68,70 @@ interfaces.forEachAsync((network_interface, ifname) => {
 
   const sap_port = new SAP.Port(ip);
   const sap_announcements = new SAP.Announcements(sap_port);
+  const ownAnnouncements = new SAP.OwnAnnouncements();
+  sap_announcements.ignoreFrom(ownAnnouncements);
 
   const all_senders = NMOS.Discovery.AllSenders({ interface: ip });
 
   const cleanup = new Cleanup();
 
-  // TODO: handle loops in a useful way
-
-  cleanup.add(all_senders.forEachAsync((sender) => {
+  cleanup.add(all_senders.forEachAsync((sender, sender_id) => {
     console.log('Found NMOS sender: %o\n', sender);
-    // TODO: create SAP announcement on this interface
+
+    let sdp = null;
+    let closed = false;
+
+    const task = async () => {
+      do
+      {
+        const change_p = all_senders.waitForChange(sender_id);
+        if (sender.info.transport.startsWith('urn:x-nmos:transport:rtp'))
+        {
+          try
+          {
+            _sdp = new SDP(await sender.fetchManifest());
+            if (closed) return;
+            ownAnnouncements.add(_sdp);
+            console.log('Created SAP announcement for %o', _sdp.id);
+            sdp = _sdp;
+          }
+          catch (err)
+          {
+            console.warn('announceing SAP failed:', err);
+          }
+        }
+        else if (sdp)
+        {
+          ownAnnouncements.delete(sdp);
+          sdp = null;
+        }
+
+        try
+        {
+          sender = await change_p;
+          if (closed) return;
+        }
+        catch (err)
+        {
+          // end task
+          return;
+        }
+        sender = senders.get(sender_id);
+      } while (true);
+    };
+
+    // run
+    task().catch((err) => { console.error('sap announcement task failed.', err); });
+
     return () => {
-      // TODO: destroy SAP announcement on this interface
+      closed = true;
+      if (sdp)
+        ownAnnouncements.delete(sdp);
     };
   }));
 
   cleanup.add(sap_announcements.forEachAsync((sdp, id) => {
+    console.log('SAP: %o', sdp);
     // TODO: create NMOS sender
     return () => {
       // TODO: delete NMOS node
