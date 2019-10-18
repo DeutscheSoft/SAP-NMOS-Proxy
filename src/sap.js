@@ -502,6 +502,8 @@ class OwnAnnouncements extends DynamicSet {
     }
 
     add(sdp) {
+        if (typeof sdp !== 'object' || !(sdp instanceof SDP))
+            throw new TypeError('Expected SDP object.');
         let s = sdp.toString();
 
         if (this.sdp_strings.has(s))
