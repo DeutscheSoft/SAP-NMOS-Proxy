@@ -1,6 +1,7 @@
 const Events = require('events');
 const os = require('os');
 
+const util = require('util');
 const Cleanup = require('./event_helpers.js').Cleanup;
 const NMOS = require('./nmos.js');
 const SAP = require('./sap.js');
@@ -170,7 +171,7 @@ class Proxy extends Events
       this.emit('log', 'Observed SAP announcement %o', sdp);
       let closed = false;
 
-      let device = node.makeDevice(sdpToNMOSDevice(sdp));
+      let device = this.nmosNode.makeDevice(sdpToNMOSDevice(sdp));
       this.emit('log', 'Created NMOS device %o', device.json);
 
       let sender = device.makeRTPSender(sdpToNMOSSender(sdp));
