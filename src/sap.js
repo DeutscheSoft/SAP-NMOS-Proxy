@@ -370,6 +370,10 @@ class Port extends Events
     this.socket.send(sap.toBuffer(), 9875, '239.255.255.255');
   }
 
+  retireIdFor(sdp) {
+      this.hasher.expire(sdp);
+  }
+
   close()
   {
     this.socket.close();
@@ -464,30 +468,33 @@ class Announcements extends DynamicSet
 class OwnAnnouncements extends DynamicSet {
     constructor() {
         super();
-        this.sdp_strings = new Map();
     }
 
     announceToPort(port) {
         const cleanup = new Cleanup();
         cleanup.subscribe(port, 'close', () => cleanup.close());
-        cleanup.add(this.forEachAsync(async (ig, sdp) => {
-            const delete_p = this.waitForDelete(sdp);
+        cleanup.add(this.forEachAsync(async (sdp, id) => {
+            const delete_p = this.waitForDelete(id);
             const cleanup_p = cleanup.whenClosed();
 
             port.announce(sdp);
 
             do {
+                let update_p = this.waitForUpdate(id);
                 switch (await whenOne([ delete_p, cleanup.sleep(AD_INTERVAL),
-                                      cleanup_p ])) {
+                                      cleanup_p, update_p ])) {
                     case 0: // delete
-                    case 2:
+                    case 2: // cleanup
                         // the port may be closed.
                         try {
                             port.retract(sdp);
                         } catch (e) {
                         }
                         return;
-                    case 1:
+                    case 3: // update
+                        port.retireIdFor(sdp);
+                        sdp = await update_p;
+                    case 1: // sleep
                         port.announce(sdp);
                         break;
                 }
@@ -500,30 +507,38 @@ class OwnAnnouncements extends DynamicSet {
     add(sdp) {
         if (typeof sdp !== 'object' || !(sdp instanceof SDP))
             throw new TypeError('Expected SDP object.');
-        let s = sdp.toString();
 
-        if (this.sdp_strings.has(s))
+        if (super.has(sdp.id))
             throw new Error("Already have this SDP.");
 
-        this.sdp_strings.set(s, sdp);
-        super.add(s, sdp);
+        super.add(sdp.id, sdp);
     }
 
     delete(sdp) {
-        const s = sdp.toString();
-        super.delete(s);
-        this.sdp_strings.delete(s);
+        if (typeof sdp !== 'object' || !(sdp instanceof SDP))
+            throw new TypeError('Expected SDP object.');
+
+        super.delete(sdp.id);
     }
 
-    has(sdp) {
-        sdp = sdp.toString();
+    update(sdp) {
+        if (typeof sdp !== 'object' || !(sdp instanceof SDP))
+            throw new TypeError('Expected SDP object.');
 
-        if (!this.sdp_strings.has(sdp))
-            return false;
+        if (!super.has(sdp.id))
+            throw new Error('Unknown SDP ID, cannot update.');
 
-        sdp = this.sdp_strings.get(sdp);
+        if (this.get(sdp.id) === sdp)
+            return;
 
-        return super.has(sdp);
+        super.update(sdp.id, sdp);
+    }
+
+    has(id) {
+        if (typeof id === 'object' && (id instanceof SDP))
+            id = id.id;
+
+        return super.has(id);
     }
 }
 
