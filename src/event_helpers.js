@@ -4,6 +4,7 @@ class Cleanup
   {
     this.subscriptions = [];
     this.closed = false;
+    this.pendingTimeouts = new Set();
   }
 
   add(cb)
@@ -19,6 +20,19 @@ class Cleanup
     {
       this.subscriptions.push(() => cb.close());
     }
+  }
+
+  setTimeout(cb, delay, ...extra)
+  {
+    const id = this.pendingTimeouts.add(setTimeout(() => {
+      this.pendingTimeouts.delete(id);
+      cb(...extra);
+    }, delay));
+  }
+
+  sleep(duration)
+  {
+    return new Promise(resolve => this.setTimeout(resolve, duration * 1000));
   }
 
   subscribe(ctx, event, listener)
@@ -55,6 +69,8 @@ class Cleanup
         console.warn('Unsubscribe failed:', err);
       }
     });
+    this.pendingTimeouts.forEach(id => clearTimeout(id));
+    this.pendingTimeouts.clear();
   }
 
   timeout(n)
