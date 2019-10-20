@@ -156,6 +156,11 @@ class RegistrationAPI extends RestAPI
     });
   }
 
+  deleteDevice(info)
+  {
+    return this.delete('resource/devices/' + info.id);
+  }
+
   /**
    * @param info.id - Unique id of this resource.
    * @param info.version - String formatted as <seconds>:<nanoseconds> when this
@@ -189,6 +194,11 @@ class RegistrationAPI extends RestAPI
       type: 'sender',
       data: info,
     });
+  }
+
+  deleteSender(info)
+  {
+    return this.delete('resource/senders/' + info.id);
   }
 
   registerReceiver(info)
