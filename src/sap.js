@@ -13,10 +13,6 @@ const DynamicSet = require('./dynamic_set.js').DynamicSet;
 const AD_INTERVAL = 30;
 const NO_OF_ADS = 10; // Timeout after this amount has been missed.
 
-function sleep(duration) {
-    return new Promise(resolve => setTimeout(resolve, duration * 1000));
-}
-
 function whenOne(them) {
     return new Promise(resolve => {
         them.forEach((promise, idx) => {
@@ -481,7 +477,7 @@ class OwnAnnouncements extends DynamicSet {
             port.announce(sdp);
 
             do {
-                switch (await whenOne([ delete_p, sleep(AD_INTERVAL),
+                switch (await whenOne([ delete_p, cleanup.sleep(AD_INTERVAL),
                                       cleanup_p ])) {
                     case 0: // delete
                     case 2:
