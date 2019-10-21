@@ -137,9 +137,13 @@ class Resource extends Events
       {
         await this.unregisterSelf(api);
       } catch (err) {
+        if (err.statusCode === 404)
+        {
+          // was not registered, yet.
+          return;
+        }
         console.log('Failed to remove device: %o', this.id);
         console.error(err);
-
       }
     });
 
