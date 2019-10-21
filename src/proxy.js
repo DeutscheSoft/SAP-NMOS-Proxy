@@ -58,8 +58,10 @@ class Proxy extends Events
     this.sapAnnounce = new SAP.OwnAnnouncements();
     this.sapAnnouncements.ignoreFrom(this.sapAnnounce);
     this.nmosSenders = NMOS.Discovery.AllSenders({ interface: ip });
+    this.sdpStringsToNMOS = this.sapAnnouncements.union();
 
     this.cleanup.add(() => {
+      this.sdpStringsToNMOS.close();
       this.nmosSenders.close();
       this.sapAnnounce.close();
       this.sapAnnouncements.close();
@@ -68,7 +70,7 @@ class Proxy extends Events
     });
 
     // NMOS -> SAP
-    this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id) => {
+    this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id, set) => {
       this.emit('log', 'Found NMOS sender: %o\n', sender);
 
       let sdp = null;
@@ -77,7 +79,7 @@ class Proxy extends Events
       const task = async () => {
         do
         {
-          const change_p = this.nmosSenders.waitForChange(sender_id);
+          const change_p = set.waitForChange(sender_id);
           if (sender.info.transport.startsWith('urn:x-nmos:transport:rtp'))
           {
             try
@@ -167,7 +169,7 @@ class Proxy extends Events
       return info;
     };
 
-    this.cleanup.add(this.sapAnnouncements.forEachAsync((sdp, sdp_id) => {
+    this.cleanup.add(this.sdpStringsToNMOS.forEachAsync((sdp, sdp_id, set) => {
       this.emit('log', 'Observed SAP announcement %o', sdp);
       let closed = false;
 
@@ -182,7 +184,7 @@ class Proxy extends Events
         {
           try
           {
-            sdp = await this.sapAnnouncements.waitForChange(sdp_id);
+            sdp = await set.waitForChange(sdp_id);
           }
           catch (err)
           {
@@ -210,6 +212,16 @@ class Proxy extends Events
   close()
   {
     this.cleanup.close();
+  }
+
+  addSDPStringsToNMOS(set)
+  {
+    this.sdpStringsToNMOS.addSet(set);
+  }
+
+  removeSDPStringsToNMOS(set)
+  {
+    this.sdpStringsToNMOS.removeSet(set);
   }
 }
 
