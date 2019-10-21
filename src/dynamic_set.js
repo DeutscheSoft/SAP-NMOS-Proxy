@@ -197,9 +197,11 @@ class DynamicSet extends Events
 
   close()
   {
+    if (this.closed) return;
     this.closed = true;
-    this.emit('close');
     this.entries.clear();
+    this.emit('close');
+    this.removeAllListeners();
   }
 
   union(...sets)
