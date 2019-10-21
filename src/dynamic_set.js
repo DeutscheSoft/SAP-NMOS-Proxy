@@ -362,8 +362,82 @@ class FilteredSet extends DynamicSet
   }
 }
 
+class PollingSet extends DynamicSet
+{
+  constructor(api, interval)
+  {
+    super();
+    this.api = api;
+    this.interval = interval || 5000;
+    this.poll_id = undefined;
+    this.fetch();
+  }
+
+  create(info)
+  {
+    return info;
+  }
+
+  makeID(info)
+  {
+    return info.id;
+  }
+
+  async fetch()
+  {
+    this.poll_id = undefined;
+
+    try
+    {
+      const entries = await this.fetchList();
+      const found = new Set();
+
+      if (this.closed) return;
+
+      entries.forEach((info) => {
+        const id = this.makeID(info);
+
+        found.add(id);
+
+        const prev = this.get(id);
+
+        if (prev)
+        {
+          if (prev.version !== info.version)
+            this.update(id, this.create(info));
+        }
+        else
+        {
+          this.add(id, this.create(info));
+        }
+      });
+
+      this.forEach((entry, id) => {
+        if (!found.has(id))
+          this.delete(id);
+      });
+    }
+    catch (err)
+    {
+      if (this.closed) return;
+
+      this.emit('warn', 'Fetching entries failed:', err);
+    }
+
+    this.poll_id = setTimeout(() => this.fetch(), this.interval);
+  }
+
+  close()
+  {
+    super.close();
+    if (this.poll_id !== undefined)
+      clearTimeout(this.poll_id);
+  }
+}
+
 module.exports = {
   DynamicSet: DynamicSet,
   UnionSet: UnionSet,
   FilteredSet: FilteredSet,
+  PollingSet: PollingSet,
 };
