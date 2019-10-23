@@ -333,7 +333,7 @@ class Nodes extends ResourceSet
 
 class Senders extends ResourceSet
 {
-  async fetchList()
+  fetchList()
   {
     return this.api.fetchSenders();
   }
