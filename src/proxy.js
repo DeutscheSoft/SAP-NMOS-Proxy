@@ -193,6 +193,7 @@ class Proxy extends Events
           try
           {
             sdp = await set.waitForChange(sdp_id);
+            Log.info('SAP announcement changed. Updating NMOS resources: %o', sdp);
           }
           catch (err)
           {
@@ -208,6 +209,7 @@ class Proxy extends Events
       task();
 
       return () => {
+        Log.info('SAP announcement was deleted. Removing NMOS resources: %o', sdp);
         closed = true;
         sender.unref();
         setTimeout(() => device.unref(), 1000);
