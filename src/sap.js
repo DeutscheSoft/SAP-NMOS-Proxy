@@ -473,32 +473,19 @@ class OwnAnnouncements extends DynamicSet {
     announceToPort(port) {
         const cleanup = new Cleanup();
         cleanup.subscribe(port, 'close', () => cleanup.close());
-        cleanup.add(this.forEachAsync(async (sdp, id) => {
-            const delete_p = this.waitForDelete(id);
-            const cleanup_p = cleanup.whenClosed();
+        cleanup.add(this.forEachAsync((sdp, id) => {
+            const interval_id = setInterval(() => {
+                port.announce(sdp);
+            }, AD_INTERVAL);
 
-            port.announce(sdp);
-
-            do {
-                let update_p = this.waitForUpdate(id);
-                switch (await whenOne([ delete_p, cleanup.sleep(AD_INTERVAL),
-                                      cleanup_p, update_p ])) {
-                    case 0: // delete
-                    case 2: // cleanup
-                        // the port may be closed.
-                        try {
-                            port.retract(sdp);
-                        } catch (e) {
-                        }
-                        return;
-                    case 3: // update
-                        port.retireIdFor(sdp);
-                        sdp = await update_p;
-                    case 1: // sleep
-                        port.announce(sdp);
-                        break;
-                }
-            } while (true);
+	    this.waitForChange(id).then( (_sdp) => {
+                port.retireIdFor(sdp);
+                sdp = _sdp;
+                port.announce(sdp);
+            }, (err) => {
+                clearInterval(interval_id);
+                port.retract(sdp);
+            }).catch(err => { console.log(err); });
         }));
 
         return cleanup;
