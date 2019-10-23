@@ -410,7 +410,10 @@ class Announcements extends DynamicSet
         Log.log('Received an SDP packet,', sdp);
 
         if (this.ignores && this.ignores.has(sdp))
+        {
+          Log.log('Ignoring.');
           return;
+        }
 
         const timeout = () => {
           Log.log('SDP timed out:', sdp);
