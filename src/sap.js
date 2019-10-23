@@ -403,11 +403,10 @@ class Announcements extends DynamicSet
 
       const id = packet.id;
       const prev_sdp = this.get(id);
+      const sdp = packet.sdp;
 
       if (packet.is_announcement())
       {
-        const sdp = packet.sdp;
-
         Log.log('Received an SDP packet,', sdp);
 
         if (this.ignores && this.ignores.has(sdp))
