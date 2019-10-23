@@ -285,6 +285,11 @@ class Resource
   {
     this.info = info;
   }
+
+  get id()
+  {
+    return this.info.id;
+  }
 }
 
 class Sender extends Resource

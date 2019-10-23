@@ -573,6 +573,22 @@ class Node extends Resource
     return cleanup;
   }
 
+  getDevice(id)
+  {
+    return this.devices.get(id);
+  }
+
+  getSender(id)
+  {
+    let sender = null;
+    this.devices.forEach((device) => {
+        if (sender) return;
+        const _sender = device.getSender(id);
+        if (_sender) sender = _sender;
+    });
+    return sender;
+  }
+
   createDevice(info)
   {
     info = Object.assign({}, info, {
