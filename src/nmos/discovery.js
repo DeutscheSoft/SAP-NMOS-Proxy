@@ -69,33 +69,61 @@ class RestAPI
 
   async get(path)
   {
-    const response = await request({
-      uri: this.resolve(path),
-      method: 'GET'
-    });
+    Log.info('GET %s', this.resolve(path));
 
-    return JSON.parse(response);
+    try
+    {
+      const response = await request({
+        uri: this.resolve(path),
+        method: 'GET'
+      });
+
+      Log.log("RESPONSE: %o", response);
+      return response;
+    } catch (err) {
+      Log.error('Request failed %o', err);
+      throw err;
+    }
   }
 
   async post(path, body)
   {
-    const response = await request({
-      uri: this.resolve(path),
-      method: 'POST',
-      json: true,
-      body: body,
-    });
+    Log.info('POST %s', this.resolve(path));
 
-    Log.log("RESPONSE: %o", response);
-    return response;
+    try
+    {
+      const response = await request({
+        uri: this.resolve(path),
+        method: 'POST',
+        json: true,
+        body: body,
+      });
+
+      Log.log("RESPONSE: %o", response);
+      return response;
+    } catch (err) {
+      Log.error('Request failed %o', err);
+      throw err;
+    }
   }
 
   async delete(path)
   {
-    return await request({
-      uri: this.resolve(path),
-      method: 'DELETE',
-    });
+    Log.info('DELETE %s', this.resolve(path));
+    try
+    {
+      const response = await request({
+        uri: this.resolve(path),
+        method: 'DELETE',
+      });
+
+      return response;
+    }
+    catch (err)
+    {
+      Log.error('Request failed %o', err);
+      throw err;
+    }
   }
 }
 
