@@ -5,6 +5,7 @@ const net = require('net');
 const Cleanup = require('./event_helpers.js').Cleanup;
 const SDP = require('./sdp.js');
 const DynamicSet = require('./dynamic_set.js').DynamicSet;
+const Log = require('./log.js');
 
 
 // Adhering to RFC 2974 apparently is neither popular nor useful. Instead, we
@@ -310,15 +311,6 @@ class Port extends Events
         const packet = Packet.fromBuffer(msg);
 
         this.emit('message', packet);
-
-        const buf = packet.toBuffer();
-
-        if (Buffer.compare(buf, msg))
-        {
-          console.error(buf);
-          console.error(msg);
-          throw new Error('mismatch.');
-        }
       }
       catch (e)
       {

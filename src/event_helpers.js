@@ -1,3 +1,5 @@
+const Log = require('./logger.js');
+
 class Cleanup
 {
   constructor()
@@ -75,7 +77,7 @@ class Cleanup
       }
       catch (err)
       {
-        console.warn('Unsubscribe failed:', err);
+        Log.warn('Unsubscribe failed:', err);
       }
     });
     this.pendingTimeouts.forEach(id => clearTimeout(id));

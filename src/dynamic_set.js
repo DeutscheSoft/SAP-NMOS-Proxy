@@ -1,5 +1,8 @@
 const Events = require('events');
+
 const Cleanup = require('./event_helpers.js').Cleanup;
+const Log = require('./logger.js');
+
 
 function once(cb)
 {
@@ -477,7 +480,7 @@ class PollingSet extends DynamicSet
     {
       if (this.closed) return;
 
-      this.emit('warn', 'Fetching entries failed:', err);
+      Log.warn('Fetching entries failed:', err);
     }
 
     this.poll_id = setTimeout(() => this.fetch(), this.interval);

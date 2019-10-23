@@ -4,8 +4,10 @@ const os = require('os');
 const util = require('util');
 const Cleanup = require('./event_helpers.js').Cleanup;
 const NMOS = require('./nmos.js');
+const Log = require('./logger.js');
 const SAP = require('./sap.js');
 const SDP = require('./sdp.js');
+
 
 const uuid = require('uuid/v5');
 
@@ -40,7 +42,7 @@ class Proxy extends Events
 
     const ip = network_interface.address;
 
-    this.emit('log', 'Starting proxy on interface %s', ip);
+    Log.info('Starting proxy on interface %s', ip);
 
     const node_id = uuid('node:'+interface_start_address(network_interface),
                          options.nmos_uuid||PROXY_NAMESPACE);
@@ -71,7 +73,7 @@ class Proxy extends Events
 
     // NMOS -> SAP
     this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id, set) => {
-      this.emit('log', 'Found NMOS sender: %o\n', sender);
+      Log.info('Found NMOS sender: %o\n', sender);
 
       let sdp = null;
       let closed = false;
@@ -88,13 +90,13 @@ class Proxy extends Events
               if (!closed)
               {
                 this.sapAnnounce.add(_sdp);
-                this.emit('log', 'Created SAP announcement for %o', _sdp.id);
+                Log.info('Created SAP announcement for %o', _sdp.id);
                 sdp = _sdp;
               }
             }
             catch (err)
             {
-              console.warn('announceing SAP failed:', err);
+              Log.warn('announceing SAP failed:', err);
             }
           }
           else if (sdp)
@@ -118,7 +120,7 @@ class Proxy extends Events
       };
 
       // run
-      task().catch((err) => { console.error('sap announcement task failed.', err); });
+      task().catch((err) => { Log.error('sap announcement task failed.', err); });
 
       return () => {
         closed = true;
@@ -170,14 +172,14 @@ class Proxy extends Events
     };
 
     this.cleanup.add(this.sdpStringsToNMOS.forEachAsync((sdp, sdp_id, set) => {
-      this.emit('log', 'Observed SAP announcement %o', sdp);
+      Log.info('Observed SAP announcement %o', sdp);
       let closed = false;
 
       let device = this.nmosNode.makeDevice(sdpToNMOSDevice(sdp));
-      this.emit('log', 'Created NMOS device %o', device.json);
+      Log.info('Created NMOS device %o', device.json);
 
       let sender = device.makeRTPSender(sdpToNMOSSender(sdp));
-      this.emit('log', 'Created NMOS sender %o', sender.json);
+      Log.info('Created NMOS sender %o', sender.json);
 
       const task = async () => {
         do

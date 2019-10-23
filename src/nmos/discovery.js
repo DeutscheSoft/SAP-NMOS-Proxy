@@ -6,6 +6,7 @@ const dnssd = require('dnssd');
 const request = require('request-promise-native');
 
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
+const Log = require('../logger.js');
 const UnionSet = require('../dynamic_set.js').UnionSet;
 const PollingSet = require('../dynamic_set.js').PollingSet;
 
@@ -36,17 +37,17 @@ try
     }
     catch (err)
     {
-      console.error("Failed to parse schema %o:", fname);
-      console.error(err);
+      Log.error("Failed to parse schema %o:", fname);
+      Log.error(err);
       process.exit(1);
     }
   });
 
-  //console.log("Compiled %d schemas.", n);
+  Log.log("Compiled %d schemas.", n);
 }
 catch(err)
 {
-  console.error("Failed to load nmos schemas", err);
+  Log.error("Failed to load nmos schemas", err);
 }
 
 /**
@@ -85,7 +86,7 @@ class RestAPI
       body: body,
     });
 
-    //console.log("RESPONSE: %o", response);
+    Log.log("RESPONSE: %o", response);
     return response;
   }
 
@@ -437,7 +438,7 @@ class Resolver extends DynamicSet
 
       if (this.netmask === null)
       {
-        console.error('Could not find netmask for ip %o', this.interface);
+        Log.error('Could not find netmask for ip %o', this.interface);
         return;
       }
 
@@ -481,7 +482,7 @@ class Resolver extends DynamicSet
       }
       catch (error)
       {
-        console.warn('Could not determine URL for NMOS service: ', error);
+        Log.warn('Could not determine URL for NMOS service: ', error);
       }
     });
     this.browser.on('serviceDown', (info) => {
@@ -497,7 +498,7 @@ class Resolver extends DynamicSet
       }
       catch (error)
       {
-        console.warn('Could not determine URL for NMOS service: ', error);
+        Log.warn('Could not determine URL for NMOS service: ', error);
       }
     });
     this.browser.start();
