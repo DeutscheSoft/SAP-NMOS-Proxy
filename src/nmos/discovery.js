@@ -70,7 +70,7 @@ class RestAPI
 
   async get(path)
   {
-    Log.info('GET %s', this.resolve(path));
+    Log.log('GET %s', this.resolve(path));
 
     try
     {
@@ -80,7 +80,7 @@ class RestAPI
         json: true,
       });
 
-      Log.log("RESPONSE: %o", response);
+      Log.verbose("RESPONSE: %o", response);
       return response;
     } catch (err) {
       Log.error('Request failed %o', err);
@@ -90,7 +90,7 @@ class RestAPI
 
   async post(path, body)
   {
-    Log.info('POST %s', this.resolve(path));
+    Log.log('POST %s', this.resolve(path));
 
     try
     {
@@ -101,7 +101,7 @@ class RestAPI
         body: body,
       });
 
-      Log.log("RESPONSE: %o", response);
+      Log.verbose("RESPONSE: %o", response);
       return response;
     } catch (err) {
       Log.error('Request failed %o', err);
@@ -111,13 +111,15 @@ class RestAPI
 
   async delete(path)
   {
-    Log.info('DELETE %s', this.resolve(path));
+    Log.log('DELETE %s', this.resolve(path));
     try
     {
       const response = await request({
         uri: this.resolve(path),
         method: 'DELETE',
       });
+
+      Log.verbose('RESPONSE: %o', response);
 
       return response;
     }
