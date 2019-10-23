@@ -204,7 +204,7 @@ class Proxy extends Events
       return () => {
         closed = true;
         sender.unref();
-        device.unref();
+        setTimeout(() => device.unref(), 1000);
       };
     }));
   }
