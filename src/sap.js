@@ -5,7 +5,7 @@ const net = require('net');
 const Cleanup = require('./event_helpers.js').Cleanup;
 const SDP = require('./sdp.js');
 const DynamicSet = require('./dynamic_set.js').DynamicSet;
-const Log = require('./log.js');
+const Log = require('./logger.js');
 
 
 // Adhering to RFC 2974 apparently is neither popular nor useful. Instead, we
