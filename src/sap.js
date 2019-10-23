@@ -474,9 +474,11 @@ class OwnAnnouncements extends DynamicSet {
         const cleanup = new Cleanup();
         cleanup.subscribe(port, 'close', () => cleanup.close());
         cleanup.add(this.forEachAsync((sdp, id) => {
+            port.announce(sdp);
+
             const interval_id = setInterval(() => {
                 port.announce(sdp);
-            }, AD_INTERVAL);
+            }, 1000 * AD_INTERVAL);
 
 	    this.waitForChange(id).then( (_sdp) => {
                 port.retireIdFor(sdp);
