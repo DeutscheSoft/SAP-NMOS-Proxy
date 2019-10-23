@@ -203,10 +203,8 @@ class Proxy extends Events
 
       return () => {
         closed = true;
-        sender.close();
-        // FIXME: devices are shared. we could delete them using refcounting
-        // but until we have that implemented we just keep it around.
-        // device.close();
+        sender.unref();
+        device.unref();
       };
     }));
   }

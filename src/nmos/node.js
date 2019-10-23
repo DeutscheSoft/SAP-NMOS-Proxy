@@ -93,6 +93,23 @@ class Resource extends Events
     super();
     this.parent = parent;
     this.info = Object.assign({}, info);
+    this.refcount = 1;
+  }
+
+  ref()
+  {
+    this.refcount++;
+    return this;
+  }
+
+  unref()
+  {
+    this.refcount--;
+
+    if (!this.refcount)
+    {
+      this.close();
+    }
   }
 
   update(info)
@@ -213,7 +230,7 @@ class ResourceSet extends DynamicSet
 
     resource.update(info);
 
-    return resource;
+    return resource.ref();
   }
 
   startRegistration(api)
