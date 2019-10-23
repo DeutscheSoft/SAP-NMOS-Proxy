@@ -408,10 +408,13 @@ class Announcements extends DynamicSet
       {
         const sdp = packet.sdp;
 
+        Log.log('Received an SDP packet,', sdp);
+
         if (this.ignores && this.ignores.has(sdp))
           return;
 
         const timeout = () => {
+          Log.log('SDP timed out:', sdp);
           this._timeouts.delete(id);
           this.delete(id, packet);
         };
@@ -421,11 +424,14 @@ class Announcements extends DynamicSet
           clearTimeout(this._timeouts.get(id));
           this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
                                             1000));
+          Log.log('Will update SDP', sdp, 'unless same');
           if (sdp.raw === prev_sdp.raw) return;
+          Log.log("... wasn't same, will update");
           this.update(id, sdp, packet);
         }
         else
         {
+          Log.log('Will add SDP', sdp);
           this.add(id, sdp, packet);
           this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
                                             1000));
@@ -433,7 +439,9 @@ class Announcements extends DynamicSet
       }
       else
       {
+        Log.log('Received deletion for SDP', sdp);
         if (!prev_sdp) return;
+        Log.log('and will proceed to remove');
         clearTimeout(this._timeouts.get(id));
         this._timeouts.delete(id);
         this.delete(id, packet, true);
@@ -477,7 +485,7 @@ class OwnAnnouncements extends DynamicSet {
             }, (err) => {
                 clearInterval(interval_id);
                 port.retract(sdp);
-            }).catch(err => { console.log(err); });
+            }).catch(err => { Log.error(err); });
         }));
 
         return cleanup;
