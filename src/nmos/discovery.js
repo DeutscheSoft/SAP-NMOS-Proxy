@@ -76,7 +76,8 @@ class RestAPI
     {
       const response = await request({
         uri: this.resolve(path),
-        method: 'GET'
+        method: 'GET',
+        json: true,
       });
 
       Log.log("RESPONSE: %o", response);
