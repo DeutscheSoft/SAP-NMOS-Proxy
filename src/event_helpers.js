@@ -5,6 +5,7 @@ class Cleanup
     this.subscriptions = [];
     this.closed = false;
     this.pendingTimeouts = new Set();
+    this.pendingIntervals = new Set();
   }
 
   add(cb)
@@ -26,6 +27,14 @@ class Cleanup
   {
     const id = this.pendingTimeouts.add(setTimeout(() => {
       this.pendingTimeouts.delete(id);
+      cb(...extra);
+    }, delay));
+  }
+
+  setInterval(cb, delay, ...extra)
+  {
+    const id = this.pendingIntervals.add(setInterval(() => {
+      this.pendingIntervals.delete(id);
       cb(...extra);
     }, delay));
   }
@@ -71,6 +80,8 @@ class Cleanup
     });
     this.pendingTimeouts.forEach(id => clearTimeout(id));
     this.pendingTimeouts.clear();
+    this.pendingIntervals.forEach(id => clearInterval(id));
+    this.pendingIntervals.clear();
   }
 
   timeout(n)
