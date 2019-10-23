@@ -4,6 +4,7 @@ const util = require('util');
 
 const dnssd = require('dnssd');
 const request = require('request-promise-native');
+const request_cb = require('request');
 
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
 const Log = require('../logger.js');
@@ -149,9 +150,36 @@ class RegistrationAPI extends RestAPI
       }
     }
 
-    return this.post('resource', {
-      type: 'node',
-      data: info,
+    return new Promise((resolve, reject) => {
+      request_cb.post({
+        uri: this.resolve('resource'),
+        json: true,
+        body: {
+          type: 'node',
+          data: info,
+        },
+      }, (error, response, body) => {
+        if (error)
+        {
+          reject(error)
+        }
+        else if (response.statusCode === 200)
+        {
+          Log.info('Node exists. Deleting node.');
+
+          this.deleteNode(info).then(() => {
+            return this.registerNode(info);
+          }).then(resolve, reject);
+        }
+        else if (response.statusCode === 201)
+        {
+          resolve(body);
+        }
+        else
+        {
+          reject(new Error('Failed with status' + response.statusCode));
+        }
+      });
     });
   }
 
