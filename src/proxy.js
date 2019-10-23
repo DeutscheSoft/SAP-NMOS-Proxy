@@ -160,7 +160,7 @@ class Proxy extends Events
         sdp: sdp,
         description: '',
         tags: {},
-        flow_id: id,
+        flow_id: null,
         transport: 'urn:x-nmos:transport:rtp.mcast',
         interface_bindings: [],
         subscription: { receiver_id: null, active: false }
