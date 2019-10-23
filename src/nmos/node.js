@@ -578,6 +578,11 @@ class Node extends Resource
     return this.devices.get(id);
   }
 
+  hasDevice(id)
+  {
+    return this.devices.has(id);
+  }
+
   getSender(id)
   {
     let sender = null;
