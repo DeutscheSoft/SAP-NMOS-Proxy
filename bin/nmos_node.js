@@ -7,10 +7,9 @@ const SDP = require('../src/sdp.js');
 const node_id = 'd6fe88a0-aac7-4f53-8de3-9046fcc4b766';
 
 const node = new Node({
-  http_port: 1080,
   info: {
     id: node_id,
-    label: 'SAP-to-NMOS proxy',
+    label: 'NMOS test node',
     description: 'This node proxies between SAP and NMOS.',
   },
 });
