@@ -170,7 +170,9 @@ class RegistrationAPI extends RestAPI
         {
           Log.info('Node exists. Deleting node.');
 
-          this.deleteNode(info).then(() => {
+          this.deleteNode(info).catch((err) => {
+            Log.warn('Deleting Node failed. Trying register anyway: %o', err);
+          }).then(() => {
             return this.registerNode(info);
           }).then(resolve, reject);
         }
