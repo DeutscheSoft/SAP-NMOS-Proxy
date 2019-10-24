@@ -283,6 +283,16 @@ class RTPSender extends Sender
     this.sdp = sdp;
   }
 
+  update(info)
+  {
+    const sdp = info.sdp;
+    if (!(sdp instanceof SDP))
+      throw new TypeError('Expected type SDP in field \'sdp\'.');
+    delete info.sdp;
+    this.sdp = sdp;
+    super.update(info);
+  }
+
   getManifest()
   {
     return [ 'application/sdp', this.sdp.raw ];

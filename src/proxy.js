@@ -149,7 +149,6 @@ class Proxy extends Events
         description: '',
         tags: {},
         type: "urn:x-nmos:device:audio",
-        node_id: PROXY_NAMESPACE,
         senders: [],
         receivers: [],
         controls: [],
