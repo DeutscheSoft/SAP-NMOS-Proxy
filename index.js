@@ -3,4 +3,5 @@ module.exports = Object.assign({
   Proxy: require('./src/proxy.js'),
   NMOS: require('./src/nmos.js'),
   SDP: require('./src/sdp.js'),
+  Log: require('./src/logger.js'),
 }, require('./src/dynamic_set.js'), require('./src/event_helpers.js'));
