@@ -7,6 +7,7 @@ const connect = require('connect');
 const dnssd = require('dnssd');
 
 const Cleanup = require('../event_helpers.js').Cleanup;
+const Log = require('../logger.js');
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
 const RegistryResolver = require('./discovery.js').RegistryResolver;
 const SDP = require('../sdp.js');
@@ -494,6 +495,7 @@ class Node extends Resource
     })
     .use('/_manifest', (req, res, next) => {
       const path = req.url.substr(1);
+      Log.info('Request for Manifest %o', path);
 
       if (path.length)
       {
@@ -511,6 +513,7 @@ class Node extends Resource
 
           res.setHeader('Content-Type', manifest[0]);
           res.end(manifest[1]);
+          Log.info('Manifest: %o', manifest);
           found = true;
         });
 
@@ -519,6 +522,7 @@ class Node extends Resource
 
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not found.');
+      Log.info('Manifest %o not found.', path);
     })
     .use('/x-nmos/node/v1.3/', (req, res, next) => {
       if (req.url === '/')
