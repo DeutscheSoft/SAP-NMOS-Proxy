@@ -85,6 +85,15 @@ class Proxy extends Events
       }
 
       const task = async () => {
+        const dev = await sender.api.fetchDevice(sender.info.device_id);
+
+        if (this.nmosNode.id === dev.node_id)
+        {
+            Log.info('Found sender %o which is part of our own NMOS node. Ignoring.',
+                     sender.id);
+            return;
+        }
+
         do
         {
           const change_p = set.waitForChange(sender_id);
