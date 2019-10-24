@@ -283,9 +283,10 @@ class Resource
     return this.info;
   }
 
-  constructor(info)
+  constructor(info, api)
   {
     this.info = info;
+    this.api = api;
   }
 
   get id()
@@ -324,7 +325,7 @@ class ResourceSet extends PollingSet
 {
   create(info)
   {
-    return new Resource(info);
+    return new Resource(info, this.api);
   }
 }
 
@@ -337,7 +338,7 @@ class Nodes extends ResourceSet
 
   create(info)
   {
-    return new Node(info);
+    return new Node(info, this.api);
   }
 }
 
@@ -350,7 +351,7 @@ class Senders extends ResourceSet
 
   create(info)
   {
-    return new Sender(info);
+    return new Sender(info, this.api);
   }
 }
 
@@ -363,7 +364,7 @@ class Devices extends ResourceSet
 
   create(info)
   {
-    return new Device(info);
+    return new Device(info, this.api);
   }
 }
 
@@ -376,13 +377,18 @@ class Receivers extends ResourceSet
 
   create(info)
   {
-    return new Receiver(info);
+    return new Receiver(info, this.api);
   }
 }
 
 // Base class used by both query and node api (which are almost identical).
 class QueryAPIBase extends RestAPI
 {
+  fetchSender(id)
+  {
+    return this.get('senders/'+id);
+  }
+
   fetchSenders()
   {
     return this.get('senders');
@@ -396,6 +402,11 @@ class QueryAPIBase extends RestAPI
   fetchDevices()
   {
     return this.get('devices');
+  }
+
+  fetchDevice(id)
+  {
+    return this.get('devices/'+id);
   }
 
   senders(interval)
