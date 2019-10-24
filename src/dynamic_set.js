@@ -289,7 +289,7 @@ class UnionSet extends DynamicSet
       this.addEntryFrom(set, id, entry, ...extra);
     });
     cleanup.subscribe(set, 'update', (id, entry, prev, ...extra) => {
-      this.updateEntryFrom(set, id, entry, ...extra);
+      this.updateEntryFrom(set, id, entry, prev, ...extra);
     });
     cleanup.subscribe(set, 'delete', (id, entry, ...extra) => {
       this.removeEntryFrom(set, id, entry, ...extra);
