@@ -1,12 +1,20 @@
-function Log(lvl, ...args)
-{
-    if (lvl <= Log.level)
+function Log(lvl, ...args) {
+    if (lvl <= Log.level) {
         console.error(...args);
+        if (Log.cb) {
+            try {
+                Log.cb(...args);
+            } catch (e) {
+                console.error('Log cb failed:');
+                console.error(e);
+            }
+        }
+    }
 }
 
 Log.defer = (lvl, cb) => {
     if (lvl <= Log.level) {
-        cb(console.error.bind(console));
+        cb(Log.bind(null, lvl));
     }
 }
 
@@ -17,5 +25,6 @@ Log.info = Log.bind(null, 2);
 Log.log = Log.bind(null, 3);
 Log.verbose = Log.bind(null, 4);
 Log.annoy = Log.bind(null, 5);
+Log.cb = null;
 
 module.exports = Log;
