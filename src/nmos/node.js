@@ -168,7 +168,7 @@ class Resource extends Events
     let updating = false;
     let again = false;
 
-    async function do_update() {
+    const do_update = async () => {
       if (cleanup.closed) return;
       try
       {
@@ -195,7 +195,7 @@ class Resource extends Events
         again = false;
         do_update();
       }
-    }
+    };
 
     do_update();
     cleanup.subscribe(this, 'update', do_update);
