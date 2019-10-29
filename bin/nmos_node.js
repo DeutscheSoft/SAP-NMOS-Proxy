@@ -52,9 +52,11 @@ function get_sdp()
     return new SDP(util.format(SDP_STR, cnt));
 }
 
+let sdp = get_sdp();
+
 const sender = device.makeRTPSender({
   id: uuid('sender:'+sdp.id, node_id),
-  sdp: get_dsp(),
+  sdp: get_sdp(),
   version: util.format('%d:%d', Date.now(), 0),
   label: '',
   description: '',
@@ -66,6 +68,7 @@ const sender = device.makeRTPSender({
 });
 
 setInterval(() => {
+  let sdp = get_sdp();
   device.update({
     id: uuid('device:192.168.178.134', node_id),
     version: util.format('%d:%d', Date.now(), 0),
