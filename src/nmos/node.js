@@ -167,6 +167,7 @@ class Resource extends Events
 
     let updating = false;
     let again = false;
+    let created = false;
 
     const do_update = async () => {
       if (cleanup.closed) return;
@@ -181,6 +182,13 @@ class Resource extends Events
         updating = true;
         await retry(() => this.registerSelf(api), 3, 1000);
         Log.info('Updated %s in NMOS registry', this);
+
+        if (!created)
+        {
+          created = true;
+          // start registering children.
+          cleanup.add(this.startChildRegistration(api));
+        }
       }
       catch (err)
       {
@@ -199,9 +207,6 @@ class Resource extends Events
 
     do_update();
     cleanup.subscribe(this, 'update', do_update);
-
-    // start registering children.
-    cleanup.add(this.startChildRegistration(api));
 
     return cleanup;
   }
