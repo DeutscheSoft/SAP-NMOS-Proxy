@@ -29,27 +29,32 @@ const device = node.makeDevice({
   controls: [],
 });
 
-const SDP_STR = [
-  "v=0",
-  "o=- 29054176 29054179 IN IP4 192.168.178.134",
-  "s=Y001-Yamaha-Ri8-D-14e622 : 32",
-  "c=IN IP4 239.69.205.203/32",
-  "t=0 0",
-  "a=keywds:Dante",
-  "m=audio 5004 RTP/AVP 96",
-  "i=1 channels: 02",
-  "a=recvonly",
-  "a=rtpmap:96 L24/48000/1",
-  "a=ptime:1",
-  "a=ts-refclk:ptp=IEEE1588-2008:00-1D-C1-FF-FE-14-E6-22:0",
-  "a=mediaclk:direct=750129611"
-].join('\r\n');
+let cnt = 0;
 
-const sdp = new SDP(SDP_STR);
+function get_sdp()
+{
+    const SDP_STR = [
+      "v=0",
+      "o=- 29054176 %d IN IP4 192.168.178.134",
+      "s=Y001-Yamaha-Ri8-D-14e622 : 32",
+      "c=IN IP4 239.69.205.203/32",
+      "t=0 0",
+      "a=keywds:Dante",
+      "m=audio 5004 RTP/AVP 96",
+      "i=1 channels: 02",
+      "a=recvonly",
+      "a=rtpmap:96 L24/48000/1",
+      "a=ptime:1",
+      "a=ts-refclk:ptp=IEEE1588-2008:00-1D-C1-FF-FE-14-E6-22:0",
+      "a=mediaclk:direct=750129611"
+    ].join('\r\n');
+
+    return new SDP(util.format(SDP_STR, cnt));
+}
 
 const sender = device.makeRTPSender({
   id: uuid('sender:'+sdp.id, node_id),
-  sdp: sdp,
+  sdp: get_dsp(),
   version: util.format('%d:%d', Date.now(), 0),
   label: '',
   description: '',
