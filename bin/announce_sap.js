@@ -1,5 +1,10 @@
+const util = require('util');
+
 const SAP = require('../src/sap.js');
 const SDP = require('../src/sdp.js');
+const Log = require('../src/logger.js');
+
+Log.level = 5;
 
 var port;
 
@@ -14,7 +19,7 @@ port.on('error', (e) => {
 
 const SDP_STR = [
   "v=0",
-  "o=- 29054176 29054179 IN IP4 192.168.178.134",
+  "o=- %d 29054179 IN IP4 192.168.178.134",
   "s=Y001-Yamaha-Ri8-D-14e622 : 32",
   "c=IN IP4 239.69.205.203/32",
   "t=0 0",
@@ -29,7 +34,15 @@ const SDP_STR = [
 ].join('\r\n');
 
 const ownAnnouncements = new SAP.OwnAnnouncements();
-ownAnnouncements.add(new SDP(SDP_STR));
+
+for (let i = 1234; i < 1234+50; i++)
+{
+  const sdp = new SDP(util.format(SDP_STR, i));
+  ownAnnouncements.add(sdp);
+
+  //setTimeout(() => ownAnnouncements.delete(sdp), 10 * 1000 + Math.random() * 2000);
+}
+
 
 let cleanup;
 
@@ -54,6 +67,6 @@ port.onReady().then(() => {
   });
 
   cleanup = ownAnnouncements.announceToPort(port);
-  setTimeout(() => cleanup.close(), 95 * 1000);
+  setTimeout(() => cleanup.close(), 10 * 1000);
 
 }).catch(e => console.error(e));
