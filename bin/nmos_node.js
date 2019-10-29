@@ -3,6 +3,9 @@ const util = require('util');
 
 const Node = require('../src/nmos/node.js');
 const SDP = require('../src/sdp.js');
+const Log = require('../src/logger.js');
+
+Log.level = 5;
 
 const node_id = 'd6fe88a0-aac7-4f53-8de3-9046fcc4b766';
 
@@ -56,3 +59,29 @@ const sender = device.makeRTPSender({
   interface_bindings: [],
   subscription: { receiver_id: null, active: false }
 });
+
+setInterval(() => {
+  device.update({
+    id: uuid('device:192.168.178.134', node_id),
+    version: util.format('%d:%d', Date.now(), 0),
+    label: 'my device',
+    description: '',
+    tags: {},
+    type: "urn:x-nmos:device:audio",
+    senders: [],
+    receivers: [],
+    controls: [],
+  });
+  sender.update({
+    id: uuid('sender:'+sdp.id, node_id),
+    sdp: sdp,
+    version: util.format('%d:%d', Date.now(), 0),
+    label: 'foo',
+    description: '',
+    tags: {},
+    flow_id: null,
+    transport: 'urn:x-nmos:transport:rtp.mcast',
+    interface_bindings: [],
+    subscription: { receiver_id: null, active: false }
+  });
+}, 2000);
