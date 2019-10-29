@@ -335,12 +335,15 @@ class Device extends Resource
 
   registerSelf(api)
   {
-    return api.registerDevice(this.json);
+    // NOTE: we use 'info' here on purpose and not this.json,
+    // because the senders which we might already know about
+    // may be unknown to the registry.
+    return api.registerDevice(this.info);
   }
 
   unregisterSelf(api)
   {
-    return api.deleteDevice(this.json);
+    return api.deleteDevice(this.info);
   }
 
   startChildRegistration(api)
