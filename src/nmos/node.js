@@ -282,7 +282,7 @@ class Sender extends Resource
 
   unregisterSelf(api)
   {
-    return api.deleteSender(this.json);
+    return api.deleteSender(this.info);
   }
 
   getManifest()
@@ -599,7 +599,7 @@ class Node extends Resource
 
   unregisterSelf(api)
   {
-    return api.deleteNode(this.json);
+    return api.deleteNode(this.info);
   }
 
   startChildRegistration(api)
