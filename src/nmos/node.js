@@ -165,41 +165,48 @@ class Resource extends Events
       }
     });
 
-    (async () => {
-      await retry(() => this.registerSelf(api), 3, 1000);
+    let updating = false;
+    let again = false;
+    let created = false;
 
-      let update_p = null;
-
-      cleanup.subscribe(this, 'update', async () => {
-        try
+    const do_update = async () => {
+      if (cleanup.closed) return;
+      try
+      {
+        if (updating)
         {
-          while (update_p)
-          {
-            Log.verbose('Waiting for previous update to complete in %s', this);
-            try {
-              await update_p;
-            } catch (e) {
-            }
-          }
-          if (cleanup.closed) return;
-          update_p = retry(() => this.registerSelf(api), 3, 1000);
-          await update_p;
-          Log.info('Updated %s in NMOS registry', this);
+          again = true;
+          Log.verbose('Waiting for previous update to complete in %s', this);
+          return;
         }
-        catch (err)
-        {
-          Log.error('Update of %o failed: %o', this.info, err);
-          cleanup.close();
-        }
-        update_p = null;
-      });
+        updating = true;
+        await retry(() => this.registerSelf(api), 3, 1000);
+        Log.info('Updated %s in NMOS registry', this);
 
-      // start registering children.
-      cleanup.add(this.startChildRegistration(api));
-    })().catch((err) => {
-      Log.error('Registration of %o failed: %o', this.info, err);
-      cleanup.close();
-    });
+        if (!created)
+        {
+          created = true;
+          // start registering children.
+          cleanup.add(this.startChildRegistration(api));
+        }
+      }
+      catch (err)
+      {
+        Log.error('Update of %o failed: %o', this.info, err);
+        cleanup.close();
+        return;
+      }
+      updating = false;
+      if (again)
+      {
+        Log.verbose('doing update again one more time.');
+        again = false;
+        do_update();
+      }
+    };
+
+    do_update();
+    cleanup.subscribe(this, 'update', do_update);
 
     return cleanup;
   }
