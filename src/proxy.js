@@ -72,7 +72,7 @@ class Proxy extends Events
     });
 
     // NMOS -> SAP
-    this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id, set) => {
+    this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id, senders) => {
       Log.info('Found NMOS sender: %o\n', sender);
 
       let sdp = null;
@@ -97,7 +97,7 @@ class Proxy extends Events
 
         do
         {
-          const change_p = set.waitForChange(sender_id);
+          const change_p = senders.waitForChange(sender_id);
           if (sender.info.transport.startsWith('urn:x-nmos:transport:rtp'))
           {
             try
