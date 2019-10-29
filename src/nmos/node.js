@@ -160,34 +160,53 @@ class Resource extends Events
           // was not registered, yet.
           return;
         }
-        console.log('Failed to remove device: %o', this.id);
-        console.error(err);
+        Log.error('Failed to remove device: %o', this.id);
+        Log.error(err);
       }
     });
 
     (async () => {
       await retry(() => this.registerSelf(api), 3, 1000);
 
+      let update_p = null;
+
       cleanup.subscribe(this, 'update', async () => {
         try
         {
-          await retry(() => this.registerSelf(api), 3, 1000);
+          while (update_p)
+          {
+            Log.verbose('Waiting for previous update to complete in %s', this);
+            try {
+              await update_p;
+            } catch (e) {
+            }
+          }
+          if (cleanup.closed) return;
+          update_p = retry(() => this.registerSelf(api), 3, 1000);
+          await update_p;
+          Log.info('Updated %s in NMOS registry', this);
         }
         catch (err)
         {
-          console.error('Update of %o failed: %o', this.info, err);
+          Log.error('Update of %o failed: %o', this.info, err);
           cleanup.close();
         }
+        update_p = null;
       });
 
       // start registering children.
       cleanup.add(this.startChildRegistration(api));
     })().catch((err) => {
-      console.error('Registration of %o failed: %o', this.info, err);
+      Log.error('Registration of %o failed: %o', this.info, err);
       cleanup.close();
     });
 
     return cleanup;
+  }
+
+  toString()
+  {
+    return util.format('%s(%o)', this.constructor.name, this.id);
   }
 }
 
@@ -547,7 +566,7 @@ class Node extends Resource
       },
       () => {
         const port = this.http.address().port;
-        console.log('http server running on port %d', port);
+        Log.info('http server running on port %d', port);
         this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port);
         info.api.endpoints = info.api.endpoints.concat([{
           "host": ip,
