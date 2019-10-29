@@ -86,6 +86,7 @@ class Proxy extends Events
 
       const task = async () => {
         const dev = await sender.api.fetchDevice(sender.info.device_id);
+        let created = false;
 
         if (this.nmosNode.id === dev.node_id)
         {
@@ -104,7 +105,15 @@ class Proxy extends Events
               const _sdp = new SDP(await sender.fetchManifest());
               if (!closed)
               {
-                this.sapAnnounce.add(_sdp);
+                if (created)
+                {
+                  this.sapAnnounce.update(_sdp);
+                }
+                else
+                {
+                  this.sapAnnounce.add(_sdp);
+                }
+                created = true;
                 Log.info('Created SAP announcement for %o', _sdp.id);
                 sdp = _sdp;
               }
