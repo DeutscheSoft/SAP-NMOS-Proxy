@@ -10,6 +10,7 @@ Log.level = 5;
 const node_id = 'd6fe88a0-aac7-4f53-8de3-9046fcc4b766';
 
 const node = new Node({
+  http_port: 1080,
   info: {
     id: node_id,
     label: 'NMOS test node',
@@ -67,6 +68,7 @@ const sender = device.makeRTPSender({
   subscription: { receiver_id: null, active: false }
 });
 
+if (false)
 setInterval(() => {
   let sdp = get_sdp();
   device.update({

@@ -457,10 +457,52 @@ class Node extends Resource
     this.cleanup = new Cleanup();
     this.devices = new Devices(this);
 
+    const send_json = (res, data) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+    };
+
+    const json = (cb) => {
+      return (req, res, next) => {
+        send_json(res, cb(req, res, next));
+      };
+    };
+
+    const exact = (cb) => {
+      return (req, res, next) => {
+        if (req.url.length > 1)
+        {
+          next();
+        }
+        else
+        {
+          cb(req, res, next);
+        }
+      };
+    };
+
     const app = connect()
-    .use('/x-nmos/node/v1.3/self', (req, res, next) => {
-      res.end(JSON.stringify(this.info), 'application/json');
+    .use((req, res, next) => {
+      // we do not use post, delete or put.
+      // also, having cors active by default like so is a terrible default
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, HEAD, OPTIONS, DELETE');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+      res.setHeader('Access-Control-Max-Age', '3600');
+      next();
     })
+    .use('/x-nmos/node/v1.3/flows', exact(json((req, res, next) => {
+      return [];
+    })))
+    .use('/x-nmos/node/v1.3/receivers', exact(json((req, res, next) => {
+      return [];
+    })))
+    .use('/x-nmos/node/v1.3/sources', exact(json((req, res, next) => {
+      return [];
+    })))
+    .use('/x-nmos/node/v1.3/self', exact(json((req, res, next) => {
+      return this.info;
+    })))
     .use('/x-nmos/node/v1.3/senders', (req, res, next) => {
       const sender_id = req.url.substr(1);
 
@@ -475,7 +517,7 @@ class Node extends Resource
           if (!sender) return;
 
           found = true;
-          res.end(JSON.stringify(sender.json), 'application/json');
+          send_json(res, sender.json);
         });
 
         if (!found)
@@ -494,7 +536,7 @@ class Node extends Resource
           });
         });
 
-        res.end(JSON.stringify(senders), 'application/json');
+        send_json(res, senders);
       }
     })
     .use('/x-nmos/node/v1.3/devices', (req, res, next) => {
@@ -506,7 +548,7 @@ class Node extends Resource
 
         if (device)
         {
-          res.end(JSON.stringify(device.json), 'application/json');
+          send_json(res, device.json);
         }
         else
         {
@@ -519,7 +561,7 @@ class Node extends Resource
       {
         const devices = Array.from(this.devices.values()).map((dev) => dev.json);
 
-        res.end(JSON.stringify(devices), 'application/json');
+        send_json(res, devices);
       }
     })
     .use('/_manifest', (req, res, next) => {
@@ -553,16 +595,22 @@ class Node extends Resource
       res.end('Not found.');
       Log.info('Manifest %o not found.', path);
     })
-    .use('/x-nmos/node/v1.3/', (req, res, next) => {
-      if (req.url === '/')
-      {
-        const paths = [
-          'self/',
-          'devices/',
-          'senders/'
-        ];
-        res.end(JSON.stringify(paths), 'application/json');
-      }
+    .use('/x-nmos/node/v1.3/', exact(json(() => {
+      return [
+        'self/',
+        'devices/',
+        'senders/'
+      ];
+    })))
+    .use('/x-nmos/node', exact(json(() => {
+      return [ 'v1.3/' ];
+    })))
+    .use('/x-nmos', exact(json(() => {
+      return [ 'node/' ];
+    })))
+    .use((req, res, next) => {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found!' }));
     });
 
     this.http = http.createServer(app);
@@ -573,7 +621,7 @@ class Node extends Resource
       },
       () => {
         const port = this.http.address().port;
-        Log.info('http server running on port %d', port);
+        Log.info('http server running at http://%s:%d', ip, port);
         this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port);
         info.api.endpoints = info.api.endpoints.concat([{
           "host": ip,
