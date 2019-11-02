@@ -630,6 +630,7 @@ class Node extends Resource
         this.update(info);
         this.resolver = new RegistryResolver(dnssd_options);
         this.cleanup.add(this.resolver.forEachAsync((api, url) => {
+          Log.info('Found NMOS registry at %o', url);
           return this.startRegistration(api);
         }));
     });
