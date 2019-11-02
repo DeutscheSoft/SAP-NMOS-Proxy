@@ -227,6 +227,11 @@ class DynamicSet extends Events
     return new MappedSet(this, cb);
   }
 
+  asyncMap(cb)
+  {
+    return new AsyncMappedSet(this, cb);
+  }
+
   static from(x)
   {
     if (Array.isArray(x))
@@ -528,7 +533,54 @@ class PollingSet extends DynamicSet
   }
 }
 
-class AsyncFilteredSet extends DynamicSet
+class AsyncDynamicSet extends DynamicSet
+{
+  constructor()
+  {
+    super();
+
+    // contains a promise per id which allows us to
+    // wait for the previous one to complete
+    this.tasks = new Map();
+  }
+
+  async wait_for_task(id)
+  {
+    let p;
+
+    while (p = this.tasks.get(id))
+    {
+      try
+      {
+        await p;
+      }
+      catch (err)
+      {
+        // this is not our error
+      }
+    }
+  }
+
+  async schedule_task(id, p) {
+    await this.wait_for_task(id);
+    this.tasks.set(id, p);
+    const result = await p;
+    this.tasks.delete(id);
+    return result;
+  };
+
+  async wait()
+  {
+    while (this.tasks.size)
+    {
+      await this.tasks.values().next().value;
+
+      await Promise.resolve();
+    }
+  }
+}
+
+class AsyncFilteredSet extends AsyncDynamicSet
 {
   constructor(set, filter)
   {
@@ -537,45 +589,17 @@ class AsyncFilteredSet extends DynamicSet
     this.filter = filter;
     const cleanup = new Cleanup();
 
-    // contains a promise per id which allows us to
-    // wait for the previous one to complete
-    this.tasks = new Map();
-
     this.cleanup = cleanup;
 
-    const wait_for_task = async (id) => {
-      let p;
-
-      while (p = this.tasks.get(id))
-      {
-        try
-        {
-          await p;
-        }
-        catch (err)
-        {
-          // this is not our error
-        }
-      }
-    };
-
-    const schedule_task = async (id, p) => {
-      await wait_for_task(id);
-      this.tasks.set(id, p);
-      const result = await p;
-      this.tasks.delete(id);
-      return result;
-    };
-
     const onadd = async (id, entry, ...extra) => {
-      if (await schedule_task(id, filter(id, entry)))
+      if (await this.schedule_task(id, filter(id, entry)))
       {
         this.add(id, entry);
       }
     };
 
     const onupdate = async (id, entry, prev, ...extra) => {
-      const will = await schedule_task(id, filter(id, entry));
+      const will = await this.schedule_task(id, filter(id, entry));
       const was = this.has(id);
 
       if (!was)
@@ -599,7 +623,7 @@ class AsyncFilteredSet extends DynamicSet
     };
 
     const ondelete = async (id, entry, ...extra) => {
-      await wait_for_task(id);
+      await this.wait_for_task(id);
       if (this.has(id))
         this.delete(id);
     };
@@ -617,15 +641,54 @@ class AsyncFilteredSet extends DynamicSet
     this.cleanup.close();
     super.close();
   }
+}
 
-  async wait()
+class AsyncMappedSet extends AsyncDynamicSet
+{
+  constructor(set, cb)
   {
-    while (this.tasks.size)
-    {
-      await this.tasks.values().next().value;
+    super();
+    this.set = set;
+    this.cb = cb;
+    const cleanup = new Cleanup();
 
-      await Promise.resolve();
-    }
+    this.cleanup = cleanup;
+
+    cleanup.subscribe(set, 'add', async (id, entry, ...extra) => {
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+
+      if (this.has(_id))
+      {
+        this.update(_id, _entry);
+      }
+      else
+      {
+        this.add(_id, _entry);
+      }
+    });
+    cleanup.subscribe(set, 'update', async (id, entry, prev, ...extra) => {
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+
+      this.update(_id, _entry);
+    });
+    cleanup.subscribe(set, 'delete', async (id, entry, ...extra) => {
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+
+      this.delete(_id);
+    });
+    cleanup.subscribe(set, 'close', () => this.close());
+
+    set.forEach(async (entry, id) => {
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+
+      this.add(_id, _entry);
+    });
+  }
+
+  close()
+  {
+    this.cleanup.close();
+    super.close();
   }
 }
 
@@ -633,6 +696,7 @@ module.exports = {
   DynamicSet: DynamicSet,
   UnionSet: UnionSet,
   MappedSet: MappedSet,
+  AsyncMappedSet: AsyncMappedSet,
   FilteredSet: FilteredSet,
   AsyncFilteredSet: AsyncFilteredSet,
   PollingSet: PollingSet,

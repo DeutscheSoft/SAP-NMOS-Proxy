@@ -47,9 +47,6 @@ test('DynamicSet.map', t => {
 
     t.deepEqual(Array.from(set.keys()),
                 a.map((v) => v*2));
-
-    t.deepEqual(Array.from(set.values()),
-                a.map((v) => v*2));
 });
 
 test('DynamicSet.asyncFilter simple', async t => {
@@ -88,4 +85,19 @@ test('DynamicSet.asyncFilter', async t => {
     await odd.wait();
 
     t.deepEqual(Array.from(even.union(odd).keys()).sort(), a.sort());
+});
+
+test('DynamicSet.asyncMap', async t => {
+    const a = enumerate(10);
+
+    const set = DynamicSet.from(a).asyncMap(async (id, v) => {
+      await random_sleep(v);
+      return [ id * 2, v * 2 ]
+    });
+
+    await sleep(100);
+
+    await set.wait();
+
+    t.deepEqual(Array.from(set.values()).sort(), a.map((v) => v*2).sort());
 });
