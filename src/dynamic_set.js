@@ -217,9 +217,43 @@ class DynamicSet extends Events
     return new FilteredSet(this, cb);
   }
 
+  asyncFilter(cb)
+  {
+    return new AsyncFilteredSet(this, cb);
+  }
+
   map(cb)
   {
     return new MappedSet(this, cb);
+  }
+
+  static from(x)
+  {
+    if (Array.isArray(x))
+    {
+      const set = new this();
+
+      x.forEach((v) => {
+        set.add(v, v);
+      });
+
+      return set;
+    }
+    else if (typeof x === 'object')
+    {
+      const set = new this();
+
+      for (let key in x)
+      {
+        set.add(key, x[key]);
+      }
+
+      return set;
+    }
+    else
+    {
+      throw new TypeError('Not supported.');
+    }
   }
 }
 
@@ -494,10 +528,112 @@ class PollingSet extends DynamicSet
   }
 }
 
+class AsyncFilteredSet extends DynamicSet
+{
+  constructor(set, filter)
+  {
+    super();
+    this.set = set;
+    this.filter = filter;
+    const cleanup = new Cleanup();
+
+    // contains a promise per id which allows us to
+    // wait for the previous one to complete
+    this.tasks = new Map();
+
+    this.cleanup = cleanup;
+
+    const wait_for_task = async (id) => {
+      let p;
+
+      while (p = this.tasks.get(id))
+      {
+        try
+        {
+          await p;
+        }
+        catch (err)
+        {
+          // this is not our error
+        }
+      }
+    };
+
+    const schedule_task = async (id, p) => {
+      await wait_for_task(id);
+      this.tasks.set(id, p);
+      const result = await p;
+      this.tasks.delete(id);
+      return result;
+    };
+
+    const onadd = async (id, entry, ...extra) => {
+      if (await schedule_task(id, filter(id, entry)))
+      {
+        this.add(id, entry);
+      }
+    };
+
+    const onupdate = async (id, entry, prev, ...extra) => {
+      const will = await schedule_task(id, filter(id, entry));
+      const was = this.has(id);
+
+      if (!was)
+      {
+        if (will)
+        {
+          this.add(id, entry);
+        }
+      }
+      else
+      {
+        if (will)
+        {
+          this.update(id, entry);
+        }
+        else
+        {
+          this.delete(id);
+        }
+      }
+    };
+
+    const ondelete = async (id, entry, ...extra) => {
+      await wait_for_task(id);
+      if (this.has(id))
+        this.delete(id);
+    };
+
+    cleanup.subscribe(set, 'add', onadd);
+    cleanup.subscribe(set, 'update', onupdate);
+    cleanup.subscribe(set, 'delete', ondelete);
+    cleanup.subscribe(set, 'close', () => this.close());
+
+    set.forEach((entry, id) => { onadd(id, entry); });
+  }
+
+  close()
+  {
+    this.cleanup.close();
+    super.close();
+  }
+
+  async wait()
+  {
+    while (this.tasks.size)
+    {
+      await this.tasks.values().next().value;
+
+      await Promise.resolve();
+    }
+  }
+}
+
 module.exports = {
   DynamicSet: DynamicSet,
   UnionSet: UnionSet,
   MappedSet: MappedSet,
   FilteredSet: FilteredSet,
+  AsyncFilteredSet: AsyncFilteredSet,
   PollingSet: PollingSet,
 };
