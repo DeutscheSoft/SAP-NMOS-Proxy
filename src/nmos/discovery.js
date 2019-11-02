@@ -51,6 +51,22 @@ catch(err)
   Log.error("Failed to load nmos schemas", err);
 }
 
+async function log_request(options)
+{
+  Log.log('%s %s', options.method, options.uri);
+
+  try
+  {
+    const response = await request(options);
+
+    Log.verbose("%s %s result %o", options.method, options.uri, response);
+    return response;
+  } catch (err) {
+    Log.error("%s %s ERROR %d %o", options.method, options.uri, err.statusCode, err.message);
+    throw err;
+  }
+}
+
 /**
  * Rest APIs.
  */
@@ -68,66 +84,31 @@ class RestAPI
     return new URL(path, this.url);
   }
 
-  async get(path)
+  get(path)
   {
-    Log.log('GET %s', this.resolve(path));
-
-    try
-    {
-      const response = await request({
-        uri: this.resolve(path),
-        method: 'GET',
-        json: true,
-      });
-
-      Log.verbose("RESPONSE: %o", response);
-      return response;
-    } catch (err) {
-      Log.error('Request failed %o', err);
-      throw err;
-    }
+    return log_request({
+      uri: this.resolve(path),
+      method: 'GET',
+      json: true,
+    });
   }
 
   async post(path, body)
   {
-    Log.log('POST %s', this.resolve(path));
-
-    try
-    {
-      const response = await request({
-        uri: this.resolve(path),
-        method: 'POST',
-        json: true,
-        body: body,
-      });
-
-      Log.verbose("RESPONSE: %o", response);
-      return response;
-    } catch (err) {
-      Log.error('Request failed %o', err);
-      throw err;
-    }
+    return log_request({
+      uri: this.resolve(path),
+      method: 'POST',
+      json: true,
+      body: body,
+    });
   }
 
   async delete(path)
   {
-    Log.log('DELETE %s', this.resolve(path));
-    try
-    {
-      const response = await request({
-        uri: this.resolve(path),
-        method: 'DELETE',
-      });
-
-      Log.verbose('RESPONSE: %o', response);
-
-      return response;
-    }
-    catch (err)
-    {
-      Log.error('Request failed %o', err);
-      throw err;
-    }
+    return log_request({
+      uri: this.resolve(path),
+      method: 'DELETE',
+    });
   }
 }
 
