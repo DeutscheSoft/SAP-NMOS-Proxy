@@ -186,7 +186,10 @@ class Resource extends Events
         {
           created = true;
           // start registering children.
-          cleanup.add(this.startChildRegistration(api));
+          const child_task = this.startChildRegistration(api);
+
+          cleanup.add(() => cleanup.close());
+          cleanup.add(child_task);
         }
       }
       catch (err)
