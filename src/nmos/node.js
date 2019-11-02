@@ -338,9 +338,7 @@ class Device extends Resource
 {
   get json()
   {
-    return Object.assign({}, this.info, {
-      senders: Array.from(this.senders.keys()),
-    });
+    return this.info;
   }
 
   get node()
