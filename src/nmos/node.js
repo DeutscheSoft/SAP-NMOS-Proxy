@@ -652,11 +652,19 @@ class Node extends Resource
   {
     const cleanup = new Cleanup();
 
-    let interval_id = setInterval(() => api.updateNodeHealth(this.id), 5000);
+    let interval_id = setInterval(async () => {
+      try
+      {
+        await api.updateNodeHealth(this.id);
+      }
+      catch (err)
+      {
+        Log.error('Node health heartbeat failed. Giving up on registry.');
+        cleanup.close();
+      }
+    }, 5000);
 
-    cleanup.add(() => {
-      clearInterval(interval_id);
-    });
+    cleanup.add(() => clearInterval(interval_id));
     cleanup.add(this.devices.startRegistration(api));
 
     return cleanup;
