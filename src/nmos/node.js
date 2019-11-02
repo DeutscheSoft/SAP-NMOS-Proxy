@@ -161,7 +161,6 @@ class Resource extends Events
           return;
         }
         Log.error('Failed to remove device: %o', this.id);
-        Log.error(err);
       }
     });
 
@@ -192,7 +191,7 @@ class Resource extends Events
       }
       catch (err)
       {
-        Log.error('Update of %o failed: %o', this.info, err);
+        Log.error('Update of %o failed.', this.info);
         cleanup.close();
         return;
       }
