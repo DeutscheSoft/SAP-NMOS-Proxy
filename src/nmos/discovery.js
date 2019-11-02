@@ -552,6 +552,9 @@ class Resolver extends DynamicSet
         if (!this.isLocalService(info)) return;
 
         const url = url_from_service(info, (ip) => this.isLocalIP(ip));
+
+        if (!(url.startsWith('http:') || url.startsWith('https'))) return;
+
         const api = new api_class(url);
         const id = info.fullname;
 
