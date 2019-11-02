@@ -568,7 +568,7 @@ class Resolver extends DynamicSet
     this.browser.on('serviceDown', (info) => {
       try
       {
-        const url = url_from_service(info);
+        const url = url_from_service(info, (ip) => this.isLocalIP(ip));
         const id = info.fullname;
 
         if (this.has(id))
