@@ -520,8 +520,7 @@ class Node extends Resource
 
         if (!found)
         {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not found.');
+          next();
         }
       }
       else
@@ -550,10 +549,8 @@ class Node extends Resource
         }
         else
         {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not found.');
+          next();
         }
-
       }
       else
       {
@@ -589,9 +586,8 @@ class Node extends Resource
         if (found) return;
       }
 
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found.');
       Log.info('Manifest %o not found.', path);
+      next();
     })
     .use('/x-nmos/node/v1.3/', exact(json(() => {
       return [
@@ -608,7 +604,7 @@ class Node extends Resource
     })))
     .use((req, res, next) => {
       res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found!' }));
+      res.end(JSON.stringify({ code: 404, error: 'Not found!', debug: null }));
     });
 
     this.http = http.createServer(app);
