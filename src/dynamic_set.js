@@ -655,7 +655,7 @@ class AsyncMappedSet extends AsyncDynamicSet
     this.cleanup = cleanup;
 
     cleanup.subscribe(set, 'add', async (id, entry, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
 
       if (this.has(_id))
       {
@@ -667,19 +667,19 @@ class AsyncMappedSet extends AsyncDynamicSet
       }
     });
     cleanup.subscribe(set, 'update', async (id, entry, prev, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'update'));
 
       this.update(_id, _entry);
     });
     cleanup.subscribe(set, 'delete', async (id, entry, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'delete'));
 
       this.delete(_id);
     });
     cleanup.subscribe(set, 'close', () => this.close());
 
     set.forEach(async (entry, id) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry));
+      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
 
       this.add(_id, _entry);
     });
