@@ -618,7 +618,12 @@ class Node extends Resource
       () => {
         const port = this.http.address().port;
         Log.info('http server running at http://%s:%d', ip, port);
-        this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port);
+        this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port, {
+          txt: {
+            api_ver: 'v1.3',
+            api_proto: 'http',
+          },
+        });
         info.api.endpoints = info.api.endpoints.concat([{
           "host": ip,
           "port": port,
@@ -631,6 +636,7 @@ class Node extends Resource
           Log.info('Found NMOS registry at %o', url);
           return this.startRegistration(api);
         }));
+        this.advertisement.start();
     });
 
     this.resolver = null;
