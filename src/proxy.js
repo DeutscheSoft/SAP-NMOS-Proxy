@@ -81,7 +81,27 @@ class Proxy extends Events
       }
 
       return true;
-    });
+    }).asyncMap(async (sender_id, sender, set, action) => {
+      // fetch SDP but only if the entry is not being deleted
+      if (action === 'delete')
+      {
+        return [ sender_id, set.get(sender_id) ];
+      }
+
+      let sdp = null;
+
+      try
+      {
+        sdp = new SDP(await sender.fetchManifest());
+      }
+      catch (err)
+      {
+        Log.error("Failed to fetch SDP string from sender %o", sender);
+      }
+
+      return [ sender_id, [ sender, sdp ] ];
+    }).filter((sender_id, entry) => !!entry[1]);
+
     this.sdpStringsToNMOS = this.sapAnnouncements.union();
 
     this.cleanup.add(() => {
@@ -94,8 +114,9 @@ class Proxy extends Events
     });
 
     // NMOS -> SAP
-    this.cleanup.add(this.nmosSenders.forEachAsync((sender, sender_id, senders) => {
+    this.cleanup.add(this.nmosSendersWithSDP.forEachAsync((entry, sender_id, senders) => {
       let closed = false;
+      let sdp;
 
       const task = async () => {
         let created = false;
@@ -103,40 +124,32 @@ class Proxy extends Events
         do
         {
           const change_p = senders.waitForChange(sender_id);
-          if (sender.info.transport.startsWith('urn:x-nmos:transport:rtp'))
+
+          const sender = entry[0];
+          const _sdp = entry[1];
+
+          try
           {
-            try
+            if (created)
             {
-              const _sdp = new SDP(await sender.fetchManifest());
-              if (!closed)
-              {
-                if (created)
-                {
-                  this.sapAnnounce.update(_sdp);
-                }
-                else
-                {
-                  this.sapAnnounce.add(_sdp);
-                }
-                created = true;
-                Log.info('Created SAP announcement for %o', _sdp.id);
-                sdp = _sdp;
-              }
+              this.sapAnnounce.update(_sdp);
             }
-            catch (err)
+            else
             {
-              Log.warn('announceing SAP failed:', err);
+              this.sapAnnounce.add(_sdp);
             }
+            created = true;
+            Log.info('Created SAP announcement for %o', _sdp.id);
+            sdp = _sdp;
           }
-          else if (sdp)
+          catch (err)
           {
-            this.sapAnnounce.delete(sdp);
-            sdp = null;
+            Log.warn('announceing SAP failed:', err);
           }
 
           try
           {
-            sender = await change_p;
+            entry = await change_p;
             if (closed) return;
           }
           catch (err)
@@ -144,7 +157,6 @@ class Proxy extends Events
             // end task
             return;
           }
-          sender = senders.get(sender_id);
         } while (true);
       };
 
