@@ -95,6 +95,7 @@ class Resource extends Events
     this.parent = parent;
     this.info = Object.assign({}, info);
     this.refcount = 1;
+    this.registered = false;
   }
 
   ref()
@@ -181,6 +182,8 @@ class Resource extends Events
         updating = true;
         await retry(() => this.registerSelf(api), 3, 1000);
         Log.info('Updated %s in NMOS registry', this);
+        this.registered = true;
+        this.emit('registered');
 
         if (!created)
         {
@@ -340,7 +343,24 @@ class Device extends Resource
 {
   get json()
   {
-    return this.info;
+    // NOTE: we do not use the real senders here on purpose,
+    // because the senders which we might already know about
+    // may be unknown to the registry.
+    const senders = [];
+
+    this.senders.forEach((sender, id) => {
+      if (sender.registered)
+        senders.push(id);
+    });
+
+    return Object.assign(
+      {},
+      this.info,
+      {
+        senders: senders,
+        receivers: []
+      }
+    );
   }
 
   get node()
@@ -361,18 +381,7 @@ class Device extends Resource
 
   registerSelf(api)
   {
-    // NOTE: we use 'info' here on purpose and not this.json,
-    // because the senders which we might already know about
-    // may be unknown to the registry.
-    const json = Object.assign(
-      {},
-      this.info,
-      {
-        senders: [],
-        receivers: []
-      }
-    );
-    return api.registerDevice(json);
+    return api.registerDevice(this.json);
   }
 
   unregisterSelf(api)
@@ -390,7 +399,11 @@ class Device extends Resource
     info = Object.assign({}, info, {
       device_id: this.id,
     });
-    return this.senders.make(info);
+    const sender = this.senders.make(info);
+
+    sender.on('registered', () => this.emit('update'));
+
+    return sender;
   }
 
   makeRTPSender(info)
