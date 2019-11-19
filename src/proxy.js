@@ -186,7 +186,12 @@ class Proxy extends Events
         type: "urn:x-nmos:device:audio",
         senders: [],
         receivers: [],
-        controls: [],
+        controls: [
+          {
+            type: "urn:x-nmos:control:manifest-base/v1.3",
+            href: "",
+          }
+        ],
       };
 
       return info;
