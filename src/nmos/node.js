@@ -364,7 +364,15 @@ class Device extends Resource
     // NOTE: we use 'info' here on purpose and not this.json,
     // because the senders which we might already know about
     // may be unknown to the registry.
-    return api.registerDevice(this.info);
+    const json = Object.assign(
+      {},
+      this.info,
+      {
+        senders: [],
+        receivers: []
+      }
+    );
+    return api.registerDevice(json);
   }
 
   unregisterSelf(api)
