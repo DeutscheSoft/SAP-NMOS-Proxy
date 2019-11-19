@@ -189,7 +189,7 @@ class Proxy extends Events
         controls: [
           {
             type: "urn:x-nmos:control:manifest-base/v1.3",
-            href: "",
+            href: "http://example.org/x-nmos/senders",
           }
         ],
       };
