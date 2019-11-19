@@ -183,7 +183,7 @@ class Proxy extends Events
         label: sdp.name.split(':')[0].trim(),
         description: '',
         tags: {},
-        type: "urn:x-nmos:device:audio",
+        type: "urn:x-nmos:device:generic",
         senders: [],
         receivers: [],
         controls: [
