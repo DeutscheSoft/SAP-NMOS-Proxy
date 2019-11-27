@@ -114,9 +114,11 @@ class RestAPI
 
 class RegistrationAPI extends RestAPI
 {
-  constructor(url)
+  constructor(url, version)
   {
-    super(url + '/x-nmos/registration/v1.3/');
+    if (!version) version = 'v1.3';
+    super(url + '/x-nmos/registration/' + version + '/');
+    this.version = version;
   }
 
   registerNode(info)
@@ -408,9 +410,11 @@ class QueryAPIBase extends RestAPI
 
 class QueryAPI extends QueryAPIBase
 {
-  constructor(url)
+  constructor(url, version)
   {
-    super(url + '/x-nmos/query/v1.3/');
+    if (!version) version = 'v1.3';
+    super(url + '/x-nmos/query/' + version + '/');
+    this.version = version;
   }
 
   fetchNodes()
@@ -437,18 +441,30 @@ class NodeAPI extends QueryAPIBase
   }
 }
 
-function url_from_service(info, filter)
+function url_and_version_from_service(info, filter)
 {
   const port = info.port;
   const host = info.addresses.filter((ip) => net.isIPv4(ip) && filter(ip))[0];
   const proto = info.txt.api_proto;
 
-  if (-1 === info.txt.api_ver.split(',').indexOf('v1.3'))
+  const versions = info.txt.api_ver.split(',');
+  let version;
+
+  for (let v of [ 'v1.3', 'v1.2', 'v1.1' ])
   {
-    throw new Error('Does not support NMOS API version v1.3');
+    if (versions.includes(v))
+    {
+      version = v;
+      break;
+    }
   }
 
-  return util.format('%s://%s:%d', proto, host, port);
+  if (!version)
+  {
+    throw new Error(util.format('Does not support NMOS API version v1.3, v1.2 or v1.1: %o', info));
+  }
+
+  return [ util.format('%s://%s:%d', proto, host, port), version ];
 }
 
 function ip_mask(ip, netmask)
@@ -532,11 +548,11 @@ class Resolver extends DynamicSet
       {
         if (!this.isLocalService(info)) return;
 
-        const url = url_from_service(info, (ip) => this.isLocalIP(ip));
+        const [ url, version ] = url_and_version_from_service(info, (ip) => this.isLocalIP(ip));
 
         if (!(url.startsWith('http:') || url.startsWith('https'))) return;
 
-        const api = new api_class(url);
+        const api = new api_class(url, version);
         const id = info.fullname;
 
         this.add(id, api);
@@ -549,7 +565,6 @@ class Resolver extends DynamicSet
     this.browser.on('serviceDown', (info) => {
       try
       {
-        const url = url_from_service(info, (ip) => this.isLocalIP(ip));
         const id = info.fullname;
 
         if (this.has(id))
