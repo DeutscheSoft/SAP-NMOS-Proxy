@@ -301,6 +301,146 @@ class Sender extends Resource
   }
 }
 
+class Flow extends Resource
+{
+  get source()
+  {
+    return this.parent;
+  }
+
+  get device()
+  {
+    return this.source.device;
+  }
+
+  constructor(...args)
+  {
+    super(...args);
+    this.senders = new Senders(this);
+  }
+
+  getSender(id)
+  {
+    return this.senders.get(id);
+  }
+
+  allSenders()
+  {
+    return Array.from(this.senders.values());
+  }
+
+  makeSender(info)
+  {
+    info = Object.assign({}, info, {
+      device_id: this.device.id,
+      flow_id: this.id,
+    });
+    const sender = this.senders.make(info);
+
+    sender.on('registered', () => this.device.emit('update'));
+
+    return sender;
+  }
+
+  makeRTPSender(info)
+  {
+    info = Object.assign({}, info, {
+      device_id: this.device.id,
+      flow_id: this.id,
+    });
+    return this.senders.make(info, RTPSender);
+  }
+
+  registerSelf(api)
+  {
+    return api.registerFlow(this.json(api));
+  }
+
+  unregisterSelf(api)
+  {
+    return api.deleteFlow(this.info);
+  }
+
+  startChildRegistration(api)
+  {
+    return this.senders.startRegistration(api);
+  }
+}
+
+class Flows extends ResourceSet
+{
+  constructor(device)
+  {
+    super(Flow, device);
+  }
+}
+
+class Source extends Resource
+{
+  get device()
+  {
+    return this.parent;
+  }
+
+  registerSelf(api)
+  {
+    return api.registerSource(this.json(api));
+  }
+
+  unregisterSelf(api)
+  {
+    return api.deleteSource(this.info);
+  }
+
+  constructor(...args)
+  {
+    super(...args);
+    this.flows = new Flows(this);
+  }
+
+  startChildRegistration(api)
+  {
+    return this.flows.startRegistration(api);
+  }
+
+  makeFlow(info)
+  {
+    info = Object.assign({}, info, {
+      device_id: this.device.id,
+      source_id: this.id,
+    });
+    return this.flows.make(info);
+  }
+
+  getFlow(id)
+  {
+    return this.flows.get(id);
+  }
+
+  getSender(id)
+  {
+    let sender;
+
+    this.flows.forEach((flow) => {
+      if (sender) return;
+      sender = flow.getSender(id);
+    });
+
+    return sender;
+  }
+
+  allSenders()
+  {
+    let senders = [];
+
+    this.flows.forEach((flow) => {
+      senders = senders.concat(flow.allSenders());
+    });
+
+    return senders;
+  }
+}
+
 class RTPSender extends Sender
 {
   json(api)
@@ -344,6 +484,14 @@ class Senders extends ResourceSet
   }
 }
 
+class Sources extends ResourceSet
+{
+  constructor(device)
+  {
+    super(Source, device);
+  }
+}
+
 class Device extends Resource
 {
   json(api)
@@ -351,12 +499,9 @@ class Device extends Resource
     // NOTE: we do not use the real senders here on purpose,
     // because the senders which we might already know about
     // may be unknown to the registry.
-    const senders = [];
-
-    this.senders.forEach((sender, id) => {
-      if (!api || sender.is_registered_at(api.url))
-        senders.push(id);
-    });
+    const senders = this.allSenders()
+      .filter((sender) => !api || sender.is_registered_at(api.url))
+      .map((sender) => sender.id);
 
     return Object.assign(
       {},
@@ -376,12 +521,36 @@ class Device extends Resource
   constructor(node, info)
   {
     super(node, info);
-    this.senders = new Senders(this);
+    this.sources = new Sources(this);
+  }
+
+  getSource(id)
+  {
+    return this.sources.get(id);
+  }
+
+  getFlow(id)
+  {
+    let flow = null;
+
+    this.sources.forEach((source, _id) => {
+      if (flow) return;
+      flow = source.getFlow(id);
+    });
+
+    return flow;
   }
 
   getSender(id)
   {
-    return this.senders.get(id);
+    let sender = null;
+
+    this.sources.forEach((source, _id) => {
+      if (sender) return;
+      sender = source.getSender(id);
+    });
+
+    return sender;
   }
 
   registerSelf(api)
@@ -396,27 +565,26 @@ class Device extends Resource
 
   startChildRegistration(api)
   {
-    return this.senders.startRegistration(api);
+    return this.sources.startRegistration(api);
   }
 
-  makeSender(info)
+  makeSource(info)
   {
     info = Object.assign({}, info, {
       device_id: this.id,
     });
-    const sender = this.senders.make(info);
-
-    sender.on('registered', () => this.emit('update'));
-
-    return sender;
+    return this.sources.make(info);
   }
 
-  makeRTPSender(info)
+  allSenders()
   {
-    info = Object.assign({}, info, {
-      device_id: this.id,
+    let senders = [];
+
+    this.sources.forEach((source) => {
+      senders = senders.concat(source.allSenders());
     });
-    return this.senders.make(info, RTPSender);
+
+    return senders;
   }
 }
 
@@ -523,15 +691,81 @@ class Node extends Resource
     for (let version of versions)
     {
       app
-      .use('/x-nmos/node/'+version+'/flows', exact(json((req, res, next) => {
-        return [];
-      })))
+      .use('/x-nmos/node/'+version+'/flows', (req, res, next) => {
+        const flow_id = req.url.substr(1);
+
+        if (flow_id.length)
+        {
+          let found = false;
+
+          this.devices.forEach((device) => {
+            if (found) return;
+            const flow = device.getFlow(flow_id);
+
+            if (!flow) return;
+
+            found = true;
+            send_json(res, flow.json());
+          });
+
+          if (!found)
+          {
+            next();
+          }
+        }
+        else
+        {
+          const flows = [];
+
+          this.devices.forEach((device) => {
+            device.sources.forEach((source, id) => {
+              source.flows.forEach((flow, id) => {
+                flows.push(flow.json());
+              });
+            });
+          });
+
+          send_json(res, flows);
+        }
+      })
       .use('/x-nmos/node/'+version+'/receivers', exact(json((req, res, next) => {
         return [];
       })))
-      .use('/x-nmos/node/'+version+'/sources', exact(json((req, res, next) => {
-        return [];
-      })))
+      .use('/x-nmos/node/'+version+'/sources', (req, res, next) => {
+        const source_id = req.url.substr(1);
+
+        if (source_id.length)
+        {
+          let found = false;
+
+          this.devices.forEach((device) => {
+            if (found) return;
+            const source = device.getSource(source_id);
+
+            if (!source) return;
+
+            found = true;
+            send_json(res, source.json());
+          });
+
+          if (!found)
+          {
+            next();
+          }
+        }
+        else
+        {
+          const sources = [];
+
+          this.devices.forEach((device) => {
+            device.sources.forEach((source, id) => {
+              sources.push(source.json());
+            });
+          });
+
+          send_json(res, sources);
+        }
+      })
       .use('/x-nmos/node/'+version+'/self', exact(json((req, res, next) => {
         return this.info;
       })))
@@ -559,12 +793,10 @@ class Node extends Resource
         }
         else
         {
-          const senders = [];
+          let senders = [];
 
           this.devices.forEach((device) => {
-            device.senders.forEach((sender, id) => {
-              senders.push(sender.json());
-            });
+            senders = senders.concat(device.allSenders().map((sender) => sender.json()));
           });
 
           send_json(res, senders);
@@ -597,7 +829,10 @@ class Node extends Resource
         return [
           'self/',
           'devices/',
-          'senders/'
+          'senders/',
+          'sources/',
+          'flows/',
+          'receivers/'
         ];
       })));
     }
@@ -672,6 +907,7 @@ class Node extends Resource
           return this.startRegistration(api);
         }));
         this.advertisement.start();
+        this.emit('ready');
     });
 
     this.resolver = null;
@@ -725,8 +961,7 @@ class Node extends Resource
     let sender = null;
     this.devices.forEach((device) => {
         if (sender) return;
-        const _sender = device.getSender(id);
-        if (_sender) sender = _sender;
+        sender = device.getSender(id);
     });
     return sender;
   }
