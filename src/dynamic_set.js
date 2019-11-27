@@ -564,9 +564,18 @@ class AsyncDynamicSet extends DynamicSet
   async schedule_task(id, p) {
     await this.wait_for_task(id);
     this.tasks.set(id, p);
-    const result = await p;
-    this.tasks.delete(id);
-    return result;
+    let result;
+    try
+    {
+      result = await p;
+      this.tasks.delete(id);
+      return result;
+    }
+    catch (err)
+    {
+      this.tasks.delete(id);
+      throw err;
+    }
   };
 
   async wait()
@@ -591,15 +600,28 @@ class AsyncFilteredSet extends AsyncDynamicSet
 
     this.cleanup = cleanup;
 
+    const safe_filter = async (id, entry) => {
+      try
+      {
+        return await this.schedule_task(id, filter(id, entry));
+      }
+      catch (err)
+      {
+        Log.error('AsyncFilteredSet callback generated an exception: %o', err);
+      }
+
+      return false;
+    };
+
     const onadd = async (id, entry, ...extra) => {
-      if (await this.schedule_task(id, filter(id, entry)))
+      if (await safe_filter(id, entry))
       {
         this.add(id, entry);
       }
     };
 
     const onupdate = async (id, entry, prev, ...extra) => {
-      const will = await this.schedule_task(id, filter(id, entry));
+      const will = await safe_filter(id, entry);
       const was = this.has(id);
 
       if (!was)
@@ -655,33 +677,61 @@ class AsyncMappedSet extends AsyncDynamicSet
     this.cleanup = cleanup;
 
     cleanup.subscribe(set, 'add', async (id, entry, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
+      try
+      {
+        const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
 
-      if (this.has(_id))
-      {
-        this.update(_id, _entry);
+        if (this.has(_id))
+        {
+          this.update(_id, _entry);
+        }
+        else
+        {
+          this.add(_id, _entry);
+        }
       }
-      else
+      catch(err)
       {
-        this.add(_id, _entry);
+        Log.error('Callback in AsyncMappedSet generated and error:', err);
       }
     });
     cleanup.subscribe(set, 'update', async (id, entry, prev, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'update'));
+      try
+      {
+        const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'update'));
 
-      this.update(_id, _entry);
+        this.update(_id, _entry);
+      }
+      catch(err)
+      {
+        Log.error('Callback in AsyncMappedSet generated and error:', err);
+      }
     });
     cleanup.subscribe(set, 'delete', async (id, entry, ...extra) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'delete'));
+      try
+      {
+        const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'delete'));
 
-      this.delete(_id);
+        this.delete(_id);
+      }
+      catch(err)
+      {
+        Log.error('Callback in AsyncMappedSet generated and error:', err);
+      }
     });
     cleanup.subscribe(set, 'close', () => this.close());
 
     set.forEach(async (entry, id) => {
-      const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
+      try
+      {
+        const [ _id, _entry ] = await this.schedule_task(id, cb(id, entry, this, 'add'));
 
-      this.add(_id, _entry);
+        this.add(_id, _entry);
+      }
+      catch(err)
+      {
+        Log.error('Callback in AsyncMappedSet generated and error:', err);
+      }
     });
   }
 
