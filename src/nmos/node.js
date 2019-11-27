@@ -79,7 +79,7 @@ class Resource extends Events
     return null;
   }
 
-  get json()
+  json(api)
   {
     return this.info;
   }
@@ -95,7 +95,12 @@ class Resource extends Events
     this.parent = parent;
     this.info = Object.assign({}, info);
     this.refcount = 1;
-    this.registered = false;
+    this.registered = new Set(); // list of urls
+  }
+
+  is_registered_at(url)
+  {
+    return this.registered.has(url);
   }
 
   ref()
@@ -182,7 +187,7 @@ class Resource extends Events
         updating = true;
         await retry(() => this.registerSelf(api), 3, 1000);
         Log.info('Updated %s in NMOS registry', this);
-        this.registered = true;
+        this.registered.add(api.url);
         this.emit('registered');
 
         if (!created)
@@ -282,7 +287,7 @@ class Sender extends Resource
 
   registerSelf(api)
   {
-    return api.registerSender(this.json);
+    return api.registerSender(this.json(api));
   }
 
   unregisterSelf(api)
@@ -298,7 +303,7 @@ class Sender extends Resource
 
 class RTPSender extends Sender
 {
-  get json()
+  json(api)
   {
     return Object.assign({
       manifest_href: this.getNode().getManifestUrl(this.id, 'sdp'),
@@ -341,7 +346,7 @@ class Senders extends ResourceSet
 
 class Device extends Resource
 {
-  get json()
+  json(api)
   {
     // NOTE: we do not use the real senders here on purpose,
     // because the senders which we might already know about
@@ -349,7 +354,7 @@ class Device extends Resource
     const senders = [];
 
     this.senders.forEach((sender, id) => {
-      if (sender.registered)
+      if (!api || sender.is_registered_at(api.url))
         senders.push(id);
     });
 
@@ -381,7 +386,7 @@ class Device extends Resource
 
   registerSelf(api)
   {
-    return api.registerDevice(this.json);
+    return api.registerDevice(this.json(api));
   }
 
   unregisterSelf(api)
@@ -544,7 +549,7 @@ class Node extends Resource
             if (!sender) return;
 
             found = true;
-            send_json(res, sender.json);
+            send_json(res, sender.json());
           });
 
           if (!found)
@@ -558,7 +563,7 @@ class Node extends Resource
 
           this.devices.forEach((device) => {
             device.senders.forEach((sender, id) => {
-              senders.push(sender.json);
+              senders.push(sender.json());
             });
           });
 
@@ -574,7 +579,7 @@ class Node extends Resource
 
           if (device)
           {
-            send_json(res, device.json);
+            send_json(res, device.json());
           }
           else
           {
@@ -583,7 +588,7 @@ class Node extends Resource
         }
         else
         {
-          const devices = Array.from(this.devices.values()).map((dev) => dev.json);
+          const devices = Array.from(this.devices.values()).map((dev) => dev.json());
 
           send_json(res, devices);
         }
@@ -675,7 +680,7 @@ class Node extends Resource
 
   registerSelf(api)
   {
-    return api.registerNode(this.json);
+    return api.registerNode(this.json(api));
   }
 
   unregisterSelf(api)
