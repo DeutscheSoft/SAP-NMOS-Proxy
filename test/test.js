@@ -87,6 +87,30 @@ test('DynamicSet.asyncFilter', async t => {
     t.deepEqual(Array.from(even.union(odd).keys()).sort(), a.sort());
 });
 
+test('DynamicSet.asyncFilter error', async t => {
+    const a = enumerate(10);
+    const is_even = async (v) => {
+      await random_sleep(v);
+      if (v & 1) throw new Error('foo');
+      return true;
+    };
+    const is_odd = async (v) => {
+      await random_sleep(v);
+      if (!(v & 1)) throw new Error('foo');
+      return true;
+    };
+
+    const even = DynamicSet.from(a).asyncFilter(is_even);
+    const odd = DynamicSet.from(a).asyncFilter(is_odd);
+
+    await sleep(100);
+
+    await even.wait();
+    await odd.wait();
+
+    t.deepEqual(Array.from(even.union(odd).keys()).sort(), a.sort());
+});
+
 test('DynamicSet.asyncMap', async t => {
     const a = enumerate(10);
 
