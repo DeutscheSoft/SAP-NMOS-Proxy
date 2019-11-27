@@ -893,6 +893,7 @@ class Node extends Resource
             api_ver: versions.join(','),
             api_proto: 'http',
           },
+          interface: ip,
         });
         info.api.endpoints = info.api.endpoints.concat([{
           "host": ip,
