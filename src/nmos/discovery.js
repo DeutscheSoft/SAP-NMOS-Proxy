@@ -68,6 +68,29 @@ async function log_request(options)
 }
 
 /**
+ * NMOS v1.2 uses service name nmos-registration which is too long for dnssd. We
+ * use this custom service type base class to suppress the error.
+ */
+function dnssdServiceTypeNoValidate(...args)
+{
+  dnssd.ServiceType.call(this, ...args);
+}
+dnssdServiceTypeNoValidate.prototype = Object.assign(Object.create(dnssd.ServiceType.prototype), {
+  _validate: function()
+  {
+    try
+    {
+      dnssd.ServiceType.prototype._validate.call(this);
+    }
+    catch (err)
+    {
+      console.warn("Suppressed validation error:", err);
+    }
+  }
+});
+
+
+/**
  * Rest APIs.
  */
 class RestAPI
@@ -536,54 +559,73 @@ class Resolver extends DynamicSet
     return false;
   }
 
-  constructor(options, api_class, dnssd_type)
+  constructor(options, api_class, ...dnssd_types)
   {
     super();
     this.interface = options ? options.interface : null;
     this.netmask = null;
-    this.browser = new dnssd.Browser(dnssd.tcp(dnssd_type), options);
+    this.browsers = [];
 
-    this.browser.on('serviceUp', (info) => {
-      try
-      {
-        if (!this.isLocalService(info)) return;
+    for (let dnssd_type of dnssd_types)
+    {
+      const service_type = dnssd_type.length > 16
+          ? new dnssdServiceTypeNoValidate(dnssd_type, '_tcp')
+          : new dnssd.ServiceType(dnssd_type, '_tcp');
+      const browser = new dnssd.Browser(service_type, options);
 
-        const [ url, version ] = url_and_version_from_service(info, (ip) => this.isLocalIP(ip));
-
-        if (!(url.startsWith('http:') || url.startsWith('https'))) return;
-
-        const api = new api_class(url, version);
-        const id = info.fullname;
-
-        this.add(id, api);
-      }
-      catch (error)
-      {
-        Log.warn('Could not determine URL for NMOS service: ', error);
-      }
-    });
-    this.browser.on('serviceDown', (info) => {
-      try
-      {
-        const id = info.fullname;
-
-        if (this.has(id))
+      browser.on('serviceUp', (info) => {
+        try
         {
-          this.delete(id);
+          if (!this.isLocalService(info)) return;
+
+          const id = info.fullname;
+
+          if (this.has(id)) return;
+
+          const [ url, version ] = url_and_version_from_service(info, (ip) => this.isLocalIP(ip));
+
+          if (!(url.startsWith('http:') || url.startsWith('https'))) return;
+
+          const api = new api_class(url, version);
+
+          this.add(id, api);
         }
-      }
-      catch (error)
-      {
-        Log.warn('Could not determine URL for NMOS service: ', error);
-      }
-    });
-    this.browser.start();
+        catch (error)
+        {
+          Log.warn('Could not determine URL for NMOS service: ', error);
+        }
+      });
+      browser.on('serviceDown', (info) => {
+        try
+        {
+          const id = info.fullname;
+
+          if (this.has(id))
+          {
+            this.delete(id);
+          }
+        }
+        catch (error)
+        {
+          Log.warn('Could not determine URL for NMOS service: ', error);
+        }
+      });
+      browser.on('serviceChanged', (info) => {
+        console.log('UPDATE', info);
+      });
+      browser.start();
+      this.browsers.push(browser);
+    }
   }
 
   close()
   {
     super.close();
-    this.browser.stop();
+
+    for (let browser of this.browsers)
+    {
+      browser.stop();
+    }
   }
 }
 
@@ -599,7 +641,7 @@ class RegistryResolver extends Resolver
 {
   constructor(options)
   {
-    super(options, RegistrationAPI, 'nmos-register');
+    super(options, RegistrationAPI, 'nmos-register', 'nmos-registration');
   }
 }
 
