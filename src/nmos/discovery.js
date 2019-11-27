@@ -625,7 +625,7 @@ class Resolver extends DynamicSet
           : new dnssd.ServiceType(dnssd_type, '_tcp');
       const browser = new dnssd.Browser(service_type, options);
 
-      browser.on('serviceUp', (info) => {
+      const add_or_update = (info) => {
         try
         {
           if (!this.isLocalService(info)) return;
@@ -646,7 +646,10 @@ class Resolver extends DynamicSet
         {
           Log.warn('Could not determine URL for NMOS service: ', error);
         }
-      });
+      };
+
+      browser.on('serviceUp', add_or_update);
+      browser.on('serviceChanged', add_or_update);
       browser.on('serviceDown', (info) => {
         try
         {
@@ -661,9 +664,6 @@ class Resolver extends DynamicSet
         {
           Log.warn('Could not determine URL for NMOS service: ', error);
         }
-      });
-      browser.on('serviceChanged', (info) => {
-        console.log('UPDATE', info);
       });
       browser.start();
       this.browsers.push(browser);
