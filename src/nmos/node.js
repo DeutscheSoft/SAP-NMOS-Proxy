@@ -454,6 +454,8 @@ class Node extends Resource
     const ip = options.ip || get_first_public_ip();
     const http_port = options.http_port;
 
+    const versions = [ 'v1.3', 'v1.2' ];
+
     const info = Object.assign({
       version: util.format('%d:%d', Date.now(), 0),
       label: '',
@@ -461,7 +463,7 @@ class Node extends Resource
       tags: {},
       caps: {},
       api: {
-        "versions": [ "v1.3" ],
+        "versions": versions,
         "endpoints": [ ],
       },
       services: [],
@@ -511,77 +513,91 @@ class Node extends Resource
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
       res.setHeader('Access-Control-Max-Age', '3600');
       next();
-    })
-    .use('/x-nmos/node/v1.3/flows', exact(json((req, res, next) => {
-      return [];
-    })))
-    .use('/x-nmos/node/v1.3/receivers', exact(json((req, res, next) => {
-      return [];
-    })))
-    .use('/x-nmos/node/v1.3/sources', exact(json((req, res, next) => {
-      return [];
-    })))
-    .use('/x-nmos/node/v1.3/self', exact(json((req, res, next) => {
-      return this.info;
-    })))
-    .use('/x-nmos/node/v1.3/senders', (req, res, next) => {
-      const sender_id = req.url.substr(1);
+    });
 
-      if (sender_id.length)
-      {
-        let found = false;
+    for (let version of versions)
+    {
+      app
+      .use('/x-nmos/node/'+version+'/flows', exact(json((req, res, next) => {
+        return [];
+      })))
+      .use('/x-nmos/node/'+version+'/receivers', exact(json((req, res, next) => {
+        return [];
+      })))
+      .use('/x-nmos/node/'+version+'/sources', exact(json((req, res, next) => {
+        return [];
+      })))
+      .use('/x-nmos/node/'+version+'/self', exact(json((req, res, next) => {
+        return this.info;
+      })))
+      .use('/x-nmos/node/'+version+'/senders', (req, res, next) => {
+        const sender_id = req.url.substr(1);
 
-        this.devices.forEach((device) => {
-          if (found) return;
-          const sender = device.getSender(sender_id);
-
-          if (!sender) return;
-
-          found = true;
-          send_json(res, sender.json);
-        });
-
-        if (!found)
+        if (sender_id.length)
         {
-          next();
-        }
-      }
-      else
-      {
-        const senders = [];
+          let found = false;
 
-        this.devices.forEach((device) => {
-          device.senders.forEach((sender, id) => {
-            senders.push(sender.json);
+          this.devices.forEach((device) => {
+            if (found) return;
+            const sender = device.getSender(sender_id);
+
+            if (!sender) return;
+
+            found = true;
+            send_json(res, sender.json);
           });
-        });
 
-        send_json(res, senders);
-      }
-    })
-    .use('/x-nmos/node/v1.3/devices', (req, res, next) => {
-      const device_id = req.url.substr(1);
-
-      if (device_id.length)
-      {
-        const device = this.devices.get(device_id);
-
-        if (device)
-        {
-          send_json(res, device.json);
+          if (!found)
+          {
+            next();
+          }
         }
         else
         {
-          next();
-        }
-      }
-      else
-      {
-        const devices = Array.from(this.devices.values()).map((dev) => dev.json);
+          const senders = [];
 
-        send_json(res, devices);
-      }
-    })
+          this.devices.forEach((device) => {
+            device.senders.forEach((sender, id) => {
+              senders.push(sender.json);
+            });
+          });
+
+          send_json(res, senders);
+        }
+      })
+      .use('/x-nmos/node/'+version+'/devices', (req, res, next) => {
+        const device_id = req.url.substr(1);
+
+        if (device_id.length)
+        {
+          const device = this.devices.get(device_id);
+
+          if (device)
+          {
+            send_json(res, device.json);
+          }
+          else
+          {
+            next();
+          }
+        }
+        else
+        {
+          const devices = Array.from(this.devices.values()).map((dev) => dev.json);
+
+          send_json(res, devices);
+        }
+      })
+      .use('/x-nmos/node/'+version+'/', exact(json(() => {
+        return [
+          'self/',
+          'devices/',
+          'senders/'
+        ];
+      })));
+    }
+
+    app
     .use('/_manifest', (req, res, next) => {
       const path = req.url.substr(1);
       Log.info('Request for Manifest %o', path);
@@ -612,15 +628,8 @@ class Node extends Resource
       Log.info('Manifest %o not found.', path);
       next();
     })
-    .use('/x-nmos/node/v1.3/', exact(json(() => {
-      return [
-        'self/',
-        'devices/',
-        'senders/'
-      ];
-    })))
     .use('/x-nmos/node', exact(json(() => {
-      return [ 'v1.3/' ];
+      return versions.map((v) => v + '/');
     })))
     .use('/x-nmos', exact(json(() => {
       return [ 'node/' ];
@@ -641,7 +650,7 @@ class Node extends Resource
         Log.info('http server running at http://%s:%d', ip, port);
         this.advertisement = new dnssd.Advertisement(dnssd.tcp('nmos-node'), port, {
           txt: {
-            api_ver: 'v1.3',
+            api_ver: versions.join(','),
             api_proto: 'http',
           },
         });
