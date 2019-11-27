@@ -270,6 +270,58 @@ class RegistrationAPI extends RestAPI
     return this.delete('resource/senders/' + info.id);
   }
 
+  registerSource(info)
+  {
+    if (registration_schemas)
+    {
+      const validator = registration_schemas.getSchema('source.json');
+
+      if (validator)
+      {
+        if (!validator(info))
+        {
+          throw new Error("Sender info does not fit schema.\n");
+        }
+      }
+    }
+
+    return this.post('resource', {
+      type: 'source',
+      data: info,
+    });
+  }
+
+  deleteSource(info)
+  {
+    return this.delete('resource/sources/' + info.id);
+  }
+
+  registerFlow(info)
+  {
+    if (registration_schemas)
+    {
+      const validator = registration_schemas.getSchema('flow.json');
+
+      if (validator)
+      {
+        if (!validator(info))
+        {
+          Log.error('validation failure for flow.json.');
+        }
+      }
+    }
+
+    return this.post('resource', {
+      type: 'flow',
+      data: info,
+    });
+  }
+
+  deleteFlow(info)
+  {
+    return this.delete('resource/flows/' + info.id);
+  }
+
   registerReceiver(info)
   {
     return this.post('resource', {
