@@ -125,6 +125,7 @@ class Datum extends Events
   close()
   {
     this.emit('close');
+    this.removeAllListeners();
   }
 
   toString()
