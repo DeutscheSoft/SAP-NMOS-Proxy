@@ -1,5 +1,8 @@
 import test from 'ava';
-import { DynamicSet } from '../index.js';
+import { Log, SDP, DynamicSet } from '../index.js';
+
+// do not want to see errors.
+Log.level = -1;
 
 function enumerate(n)
 {
@@ -124,4 +127,28 @@ test('DynamicSet.asyncMap', async t => {
     await set.wait();
 
     t.deepEqual(Array.from(set.values()).sort(), a.map((v) => v*2).sort());
+});
+
+test('SDP', t => {
+    const sdp = new SDP([ "v=0\r\n",
+    "o=- 29054176 %d IN IP4 192.168.178.134\r\n",
+    "s=Y001-Yamaha-Ri8-D-14e622 : 32\r\n",
+    "c=IN IP4 239.69.205.203/32\r\n",
+    "t=0 0\r\n",
+    "a=keywds:Dante\r\n",
+    "m=audio 5004 RTP/AVP 96\r\n",
+    "i=1 channels: 02\r\n",
+    "a=recvonly\r\n",
+    "a=rtpmap:96 L24/48000/1\r\n",
+    "a=ptime:1\r\n",
+    "a=ts-refclk:ptp=IEEE1588-2008:00-1D-C1-FF-FE-14-E6-22:0\r\n",
+    "a=mediaclk:direct=750129611" ].join(""));
+
+    const clock = {
+      type: 'ptp',
+      version: 'IEEE1588-2008',
+      gmid: '00-1D-C1-FF-FE-14-E6-22',
+      domain: '0',
+    };
+    t.deepEqual(sdp.ptp_clock, clock);
 });

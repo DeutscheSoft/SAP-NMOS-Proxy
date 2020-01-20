@@ -3,6 +3,7 @@ class SDP
   constructor(raw)
   {
     this.raw = raw;
+    this.lines = this.raw.split('\r\n');
 
     {
       const [ username, session_id, session_version, nettype, addrtype, addr ] = this.origin.split(' ');
@@ -22,13 +23,12 @@ class SDP
   {
     const values = [];
 
-    for (let line of this.raw.split('\r\n')) {
-      const [ type, value ] = line.split('=');
+    for (let line of this.lines)
+    {
+      if (!line.startsWith(c)) continue;
+      if (line.charCodeAt(c.length) !== '='.charCodeAt(0)) continue;
 
-      if (type === c)
-      {
-        values.push(value);
-      }
+      values.push(line.substr(c.length + 1));
     }
 
     return values;
@@ -69,6 +69,27 @@ class SDP
   toString()
   {
     return this.raw;
+  }
+
+  get ptp_clock()
+  {
+    for (let val of this.get_fields('a'))
+    {
+      // rfc7273 PTP
+      const rfc7273prefix = "ts-refclk:ptp=";
+      if (val.startsWith(rfc7273prefix))
+      {
+        const clksrc = val.substr(rfc7273prefix.length);
+        const [ version, gmid, domain ] = clksrc.split(':');
+
+        return {
+          type: 'ptp',
+          gmid: gmid,
+          version: version,
+          domain: domain,
+        };
+      }
+    }
   }
 }
 
