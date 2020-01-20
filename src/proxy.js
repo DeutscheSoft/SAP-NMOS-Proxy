@@ -186,6 +186,9 @@ class Proxy extends Events
       let device = this.nmosNode.makeDevice(this.sdpToNMOSDevice(sdp));
       Log.info('Created NMOS device %o', device.info);
 
+      let clock = this.nmosNode.makeClock(this.sdpToNMOSClock(sdp));
+      Log.info('Created NMOS clock %o', device.info);
+
       let source = device.makeSource(this.sdpToNMOSSource(sdp));
       Log.info('Created NMOS source %o', source.info);
 
@@ -213,6 +216,7 @@ class Proxy extends Events
           sender.update(this.sdpToNMOSSender(sdp));
           source.update(this.sdpToNMOSSource(sdp));
           flow.update(this.sdpToNMOSFlow(sdp));
+          clock.update(this.sdpToNMOSClock(sdp));
         }
         while (true);
       };
@@ -227,6 +231,7 @@ class Proxy extends Events
         sender.unref();
         flow.unref();
         source.unref();
+        clock.unref();
         setTimeout(() => device.unref(), 1000);
       };
     }));
@@ -375,6 +380,26 @@ class Proxy extends Events
     };
 
     return info;
+  }
+
+  sdpToNMOSClock(sdp)
+  {
+    const clock = sdp.ptp_clock;
+
+    if (!clock || !clock.gmid)
+    {
+      return {
+        ref_type: 'internal',
+      };
+    }
+
+    return {
+      ref_type: 'ptp',
+      traceable: clock.traceable,
+      version: clock.version,
+      gmid: clock.gmid.toLowerCase(),
+      locked: false,
+    };
   }
 }
 
