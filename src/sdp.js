@@ -80,13 +80,28 @@ class SDP
       if (val.startsWith(rfc7273prefix))
       {
         const clksrc = val.substr(rfc7273prefix.length);
-        const [ version, gmid, domain ] = clksrc.split(':');
+        let traceable = false;
+        let version, gmid, domain;
+
+        const tmp = clksrc.split(':');
+
+        if (tmp.length === 3)
+        {
+          [ version, gmid, domain ] = tmp;
+        }
+        else if (tmp.length === 2 && tmp[1] === 'traceable')
+        {
+          version = tmp[0];
+          traceable = true;
+        }
+        else continue;
 
         return {
           type: 'ptp',
           gmid: gmid,
           version: version,
           domain: domain,
+          traceable: traceable,
         };
       }
     }
