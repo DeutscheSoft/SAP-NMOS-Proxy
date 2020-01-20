@@ -297,6 +297,14 @@ class ResourceSet extends DynamicSet
   }
 }
 
+class Clock extends Datum
+{
+  get id()
+  {
+    return this.info.name;
+  }
+}
+
 class Sender extends Resource
 {
   get device()
@@ -641,6 +649,13 @@ class Devices extends ResourceSet
 
 class Node extends Resource
 {
+  json(api)
+  {
+    return Object.assign({}, this.info, {
+      clocks: Array.from(this.clocks.values()).map((clock) => clock.json(api)),
+    });
+  }
+
   constructor(options)
   {
     const ip = options.ip || get_first_public_ip();
@@ -671,6 +686,7 @@ class Node extends Resource
 
     this.cleanup = new Cleanup();
     this.devices = new Devices(this);
+    this.clocks = new Map();
 
     const send_json = (res, data) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -786,7 +802,7 @@ class Node extends Resource
         }
       })
       .use('/x-nmos/node/'+version+'/self', exact(json((req, res, next) => {
-        return this.info;
+        return this.json();
       })))
       .use('/x-nmos/node/'+version+'/senders', (req, res, next) => {
         const sender_id = req.url.substr(1);
@@ -1022,6 +1038,67 @@ class Node extends Resource
   getManifestUrl(id, type)
   {
     return util.format('%s/_manifest/%s.%s', this.baseUrl(), id, type);
+  }
+
+  createClock(info)
+  {
+    let name, i = 0;
+
+    do
+    {
+      name = 'clk' + i;
+    } while (this.clocks.has(name));
+
+    info = Object.assign({}, info, { name: name });
+
+    const clock = new Clock(this, info);
+
+    this.clocks.set(name, clock);
+
+    clock.on('close', () => {
+      this.clocks.delete(name);
+      this.emit('update');
+    });
+    clock.on('update', () => this.emit('update'));
+  }
+
+  findClock(cb)
+  {
+    let clock;
+
+    this.clocks.forEach((_clock) => {
+      if (clock) return;
+      if (cb(_clock))
+      {
+        clock = _clock;
+      }
+    });
+
+    return clock;
+  }
+
+  makeClock(info)
+  {
+    if (info.ref_type === 'ptp')
+    {
+      const clock = this.findClock((clock) => {
+        return clock.info.ref_type === 'ptp' &&
+          clock.info.ref_type.gmid === info.gmid;
+      });
+
+      if (clock) return clock.ref();
+
+      return this.createClock(info);
+    }
+    else if (info.ref_type === 'internal')
+    {
+      const clock = this.findClock(clock => clock.info.ref_type === 'internal');
+
+      if (clock) return clock.ref();
+
+      return this.createClock(info);
+    }
+    else throw new Error("Unknown clock type.");
   }
 }
 
