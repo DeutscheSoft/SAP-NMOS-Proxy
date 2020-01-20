@@ -305,6 +305,14 @@ class Clock extends Datum
   }
 }
 
+class Interface extends Datum
+{
+  get id()
+  {
+    return this.info.name;
+  }
+}
+
 class Sender extends Resource
 {
   get device()
@@ -653,6 +661,7 @@ class Node extends Resource
   {
     return Object.assign({}, this.info, {
       clocks: Array.from(this.clocks.values()).map((clock) => clock.json(api)),
+      interfaces: Array.from(this.interfaces.values()).map((iface) => iface.json(api)),
     });
   }
 
@@ -687,6 +696,7 @@ class Node extends Resource
     this.cleanup = new Cleanup();
     this.devices = new Devices(this);
     this.clocks = new Map();
+    this.interfaces = new Map();
 
     const send_json = (res, data) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1060,6 +1070,8 @@ class Node extends Resource
       this.emit('update');
     });
     clock.on('update', () => this.emit('update'));
+
+    return clock;
   }
 
   findClock(cb)
@@ -1099,6 +1111,56 @@ class Node extends Resource
       return this.createClock(info);
     }
     else throw new Error("Unknown clock type.");
+  }
+
+  createInterface(info)
+  {
+    let name, i = 0;
+
+    do
+    {
+      name = 'en' + i;
+    } while (this.interfaces.has(name));
+
+    info = Object.assign({}, info, { name: name });
+
+    const iface = new Interface(this, info);
+
+    this.interfaces.set(name, iface);
+
+    iface.on('close', () => {
+      this.interfaces.delete(name);
+      this.emit('update');
+    });
+    iface.on('update', () => this.emit('update'));
+
+    return iface;
+  }
+
+  findInterface(cb)
+  {
+    let iface;
+
+    this.interfaces.forEach((_iface) => {
+      if (iface) return;
+      if (cb(_iface))
+      {
+        iface = _iface;
+      }
+    });
+
+    return iface;
+  }
+
+  makeInterface(info)
+  {
+    let iface = this.findInterface((iface) => {
+      return iface.info.port_id === info.port_id;
+    });
+
+    if (iface) return iface.ref();
+
+    return this.createInterface(info);
   }
 }
 
