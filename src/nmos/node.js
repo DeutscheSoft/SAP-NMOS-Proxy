@@ -64,8 +64,16 @@ async function retry(task, n, timeout)
   throw err;
 }
 
-class Resource extends Events
+class Datum extends Events
 {
+  constructor(parent, info)
+  {
+    super();
+    this.parent = parent;
+    this.info = Object.assign({}, info);
+    this.refcount = 1;
+  }
+
   getNode()
   {
     let tmp = this;
@@ -86,21 +94,7 @@ class Resource extends Events
 
   get id()
   {
-    return this.info.id;
-  }
-
-  constructor(parent, info)
-  {
-    super();
-    this.parent = parent;
-    this.info = Object.assign({}, info);
-    this.refcount = 1;
-    this.registered = new Set(); // list of urls
-  }
-
-  is_registered_at(url)
-  {
-    return this.registered.has(url);
+    throw new Error('Missing implementation of get id');
   }
 
   ref()
@@ -121,9 +115,6 @@ class Resource extends Events
 
   update(info)
   {
-    if (info.id && info.id !== this.id)
-      throw new Error('ID cannot be changed.');
-
     const n = Object.assign({}, this.info, info);
     if (deep_equal(n, this.info))
       return;
@@ -134,6 +125,38 @@ class Resource extends Events
   close()
   {
     this.emit('close');
+  }
+
+  toString()
+  {
+    return util.format('%s(%o)', this.constructor.name, this.id);
+  }
+}
+
+class Resource extends Datum
+{
+  get id()
+  {
+    return this.info.id;
+  }
+
+  constructor(parent, info)
+  {
+    super(parent, info);
+    this.registered = new Set(); // list of urls
+  }
+
+  update(info)
+  {
+    if (info.id && info.id !== this.id)
+      throw new Error('ID cannot be changed.');
+
+    return base.update(info);
+  }
+
+  is_registered_at(url)
+  {
+    return this.registered.has(url);
   }
 
   registerSelf(api)
@@ -219,11 +242,6 @@ class Resource extends Events
     cleanup.subscribe(this, 'update', do_update);
 
     return cleanup;
-  }
-
-  toString()
-  {
-    return util.format('%s(%o)', this.constructor.name, this.id);
   }
 }
 
