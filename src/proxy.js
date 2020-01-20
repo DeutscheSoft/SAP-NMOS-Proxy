@@ -175,150 +175,24 @@ class Proxy extends Events
       };
     }));
 
-    // SAP -> NMOS
-    const sdpToNMOSDevice = (sdp) => {
-      const id = uuid('device:'+sdp.origin_addr, node_id);
-
-      const info = {
-        id: id,
-        version: util.format('%d:%d', Date.now(), 0),
-        label: sdp.name.split(':')[0].trim(),
-        description: '',
-        tags: {},
-        type: "urn:x-nmos:device:generic",
-        senders: [],
-        receivers: [],
-        controls: [
-          {
-            type: "urn:x-nmos:control:manifest-base/v1.3",
-            href: "http://example.org/x-nmos/senders",
-          }
-        ],
-      };
-
-      return info;
-    };
-
-    const sdpToNMOSSender = (sdp) => {
-      const id = uuid('sender:'+sdp.id, node_id);
-
-      const info = {
-        id: id,
-        version: util.format('%d:%d', Date.now(), 0),
-        label: sdp.name,
-        sdp: sdp,
-        description: '',
-        tags: {},
-        // flow_id will be filled by flow
-        transport: 'urn:x-nmos:transport:rtp.mcast',
-        interface_bindings: [],
-        subscription: { receiver_id: null, active: false }
-      };
-
-      return info;
-    };
-
-    const sdpToNMOSSource = (sdp) => {
-      const id = uuid('source:'+sdp.id, node_id);
-
-      const info = {
-        id: id,
-        version: util.format('%d:%d', Date.now(), 0),
-        label: sdp.name,
-        description: '',
-        tags: {},
-        caps: {},
-        // device_id is filled by the device
-        parents: [],
-        clock_name: null,
-        format: "urn:x-nmos:format:audio",
-        channels: [
-          {
-            label: "Channel",
-          }
-        ],
-      };
-
-      return info;
-    };
-
-    const sdpToNMOSFlow = (sdp) => {
-      const id = uuid('flow:'+sdp.id, node_id);
-
-      let media_type;
-      let bit_depth;
-      let sample_rate;
-
-      for (let attribute of sdp.get_fields('a'))
-      {
-        if (!attribute.startsWith('rtpmap:')) continue;
-        if (attribute.includes('L24'))
-        {
-          media_type = 'audio/L24';
-          bit_depth = 24;
-        }
-        else if (attribute.includes('L20'))
-        {
-          media_type = 'audio/L20';
-          bit_depth = 20;
-        }
-        else if (attribute.includes('L16'))
-        {
-          media_type = 'audio/L16';
-          bit_depth = 16;
-        }
-        else if (attribute.includes('L8'))
-        {
-          media_type = 'audio/L8';
-          bit_depth = 8;
-        }
-        else continue;
-
-        sample_rate = parseInt(attribute.split('/')[1]);
-      }
-
-      if (!media_type)
-        return null;
-
-      const info = {
-        id: id,
-        version: util.format('%d:%d', Date.now(), 0),
-        label: sdp.name,
-        description: '',
-        tags: {},
-        // device_id is filled by the device
-        // source_id is filled by the source
-        format: "urn:x-nmos:format:audio",
-        sample_rate: {
-          numerator: sample_rate,
-          denominator: 1,
-        },
-        media_type: media_type,
-        bit_depth: bit_depth,
-        parents: [],
-      };
-
-      return info;
-    };
-
     const sdpStringsWithFlow = this.sdpStringsToNMOS.filter((sdp_id, sdp) => {
-      return sdpToNMOSFlow(sdp) !== null;
+      return this.sdpToNMOSFlow(sdp) !== null;
     });
 
     this.cleanup.add(sdpStringsWithFlow.forEachAsync((sdp, sdp_id, set) => {
       Log.info('Observed SAP announcement %o', sdp);
       let closed = false;
 
-      let device = this.nmosNode.makeDevice(sdpToNMOSDevice(sdp));
+      let device = this.nmosNode.makeDevice(this.sdpToNMOSDevice(sdp));
       Log.info('Created NMOS device %o', device.info);
 
-      let source = device.makeSource(sdpToNMOSSource(sdp));
+      let source = device.makeSource(this.sdpToNMOSSource(sdp));
       Log.info('Created NMOS source %o', source.info);
 
-      let flow = source.makeFlow(sdpToNMOSFlow(sdp));
+      let flow = source.makeFlow(this.sdpToNMOSFlow(sdp));
       Log.info('Created NMOS source %o', flow.info);
 
-      let sender = flow.makeRTPSender(sdpToNMOSSender(sdp));
+      let sender = flow.makeRTPSender(this.sdpToNMOSSender(sdp));
       Log.info('Created NMOS sender %o', sender.info);
 
       const task = async () => {
@@ -335,10 +209,10 @@ class Proxy extends Events
             return;
           }
 
-          device.update(sdpToNMOSDevice(sdp));
-          sender.update(sdpToNMOSSender(sdp));
-          source.update(sdpToNMOSSource(sdp));
-          flow.update(sdpToNMOSFlow(sdp));
+          device.update(this.sdpToNMOSDevice(sdp));
+          sender.update(this.sdpToNMOSSender(sdp));
+          source.update(this.sdpToNMOSSource(sdp));
+          flow.update(this.sdpToNMOSFlow(sdp));
         }
         while (true);
       };
@@ -371,6 +245,136 @@ class Proxy extends Events
   removeSDPStringsToNMOS(set)
   {
     this.sdpStringsToNMOS.removeSet(set);
+  }
+
+  // SAP -> NMOS
+  sdpToNMOSDevice(sdp)
+  {
+    const id = uuid('device:'+sdp.origin_addr, this.nmosNode.id);
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name.split(':')[0].trim(),
+      description: '',
+      tags: {},
+      type: "urn:x-nmos:device:generic",
+      senders: [],
+      receivers: [],
+      controls: [
+        {
+          type: "urn:x-nmos:control:manifest-base/v1.3",
+          href: "http://example.org/x-nmos/senders",
+        }
+      ],
+    };
+
+    return info;
+  }
+
+  sdpToNMOSSender(sdp)
+  {
+    const id = uuid('sender:'+sdp.id, this.nmosNode.id);
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name,
+      sdp: sdp,
+      description: '',
+      tags: {},
+      // flow_id will be filled by flow
+      transport: 'urn:x-nmos:transport:rtp.mcast',
+      interface_bindings: [],
+      subscription: { receiver_id: null, active: false }
+    };
+
+    return info;
+  }
+
+  sdpToNMOSSource(sdp)
+  {
+    const id = uuid('source:'+sdp.id, this.nmosNode.id);
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name,
+      description: '',
+      tags: {},
+      caps: {},
+      // device_id is filled by the device
+      parents: [],
+      clock_name: null,
+      format: "urn:x-nmos:format:audio",
+      channels: [
+        {
+          label: "Channel",
+        }
+      ],
+    };
+
+    return info;
+  }
+
+  sdpToNMOSFlow(sdp)
+  {
+    const id = uuid('flow:'+sdp.id, this.nmosNode.id);
+
+    let media_type;
+    let bit_depth;
+    let sample_rate;
+
+    for (let attribute of sdp.get_fields('a'))
+    {
+      if (!attribute.startsWith('rtpmap:')) continue;
+      if (attribute.includes('L24'))
+      {
+        media_type = 'audio/L24';
+        bit_depth = 24;
+      }
+      else if (attribute.includes('L20'))
+      {
+        media_type = 'audio/L20';
+        bit_depth = 20;
+      }
+      else if (attribute.includes('L16'))
+      {
+        media_type = 'audio/L16';
+        bit_depth = 16;
+      }
+      else if (attribute.includes('L8'))
+      {
+        media_type = 'audio/L8';
+        bit_depth = 8;
+      }
+      else continue;
+
+      sample_rate = parseInt(attribute.split('/')[1]);
+    }
+
+    if (!media_type)
+      return null;
+
+    const info = {
+      id: id,
+      version: util.format('%d:%d', Date.now(), 0),
+      label: sdp.name,
+      description: '',
+      tags: {},
+      // device_id is filled by the device
+      // source_id is filled by the source
+      format: "urn:x-nmos:format:audio",
+      sample_rate: {
+        numerator: sample_rate,
+        denominator: 1,
+      },
+      media_type: media_type,
+      bit_depth: bit_depth,
+      parents: [],
+    };
+
+    return info;
   }
 }
 
