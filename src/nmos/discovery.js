@@ -620,7 +620,7 @@ class Resolver extends DynamicSet
 
     for (let dnssd_type of dnssd_types)
     {
-      const service_type = dnssd_type.length > 16
+      const service_type = dnssd_type.length >= 16
           ? new dnssdServiceTypeNoValidate(dnssd_type, '_tcp')
           : new dnssd.ServiceType(dnssd_type, '_tcp');
       const browser = new dnssd.Browser(service_type, options);
