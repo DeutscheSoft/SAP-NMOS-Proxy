@@ -149,6 +149,7 @@ test('SDP', t => {
       version: 'IEEE1588-2008',
       gmid: '00-1D-C1-FF-FE-14-E6-22',
       domain: '0',
+      traceable: false,
     };
     t.deepEqual(sdp.ptp_clock, clock);
 });
