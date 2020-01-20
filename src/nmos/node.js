@@ -152,7 +152,7 @@ class Resource extends Datum
     if (info.id && info.id !== this.id)
       throw new Error('ID cannot be changed.');
 
-    return base.update(info);
+    return super.update(info);
   }
 
   is_registered_at(url)
