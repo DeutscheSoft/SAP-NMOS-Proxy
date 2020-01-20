@@ -7,7 +7,7 @@ const NMOS = require('./nmos.js');
 const Log = require('./logger.js');
 const SAP = require('./sap.js');
 const SDP = require('./sdp.js');
-
+const toMAC = require('@network-utils/arp-lookup').toMAC;
 
 const uuid = require('uuid/v5');
 
@@ -22,6 +22,26 @@ function interface_start_address(interface)
   }
 
   return ip.join('.');
+}
+
+function IPtoMAC(ip)
+{
+  // the IP could be local
+  const interfaces = os.networkInterfaces();
+
+  for (let ifname in interfaces)
+  {
+    const addresses = interfaces[ifname];
+
+    for (let i = 0; i < addresses.length; i++)
+    {
+      const info = addresses[i];
+
+      if (info.address === ip) return Promise.resolve(info.mac);
+    }
+  }
+
+  return toMAC(ip);
 }
 
 // The namespace ID of the nmos proxy. We use this as the base of
@@ -195,10 +215,25 @@ class Proxy extends Events
       let flow = source.makeFlow(this.sdpToNMOSFlow(sdp));
       Log.info('Created NMOS source %o', flow.info);
 
-      let sender = flow.makeRTPSender(this.sdpToNMOSSender(sdp));
+      let iface;
+
+      let sender = flow.makeRTPSender(this.sdpToNMOSSender(sdp, iface));
       Log.info('Created NMOS sender %o', sender.info);
 
       const task = async () => {
+        let mac = await IPtoMAC(sdp.origin_addr);
+
+        if (mac)
+        {
+          iface = this.nmosNode.makeInterface(this.macToNMOSInterface(mac));
+          sender.update(this.sdpToNMOSSender(sdp, iface));
+          Log.info('Found interface for ip %o', sdp.origin_addr);
+        }
+        else
+        {
+          Log.warn('Could not find mac address for ip %o', sdp.origin_addr);
+        }
+
         do
         {
           try
@@ -213,7 +248,7 @@ class Proxy extends Events
           }
 
           device.update(this.sdpToNMOSDevice(sdp));
-          sender.update(this.sdpToNMOSSender(sdp));
+          sender.update(this.sdpToNMOSSender(sdp, iface));
           source.update(this.sdpToNMOSSource(sdp));
           flow.update(this.sdpToNMOSFlow(sdp));
           clock.update(this.sdpToNMOSClock(sdp));
@@ -232,6 +267,7 @@ class Proxy extends Events
         flow.unref();
         source.unref();
         clock.unref();
+        if (iface) iface.unref();
         setTimeout(() => device.unref(), 1000);
       };
     }));
@@ -277,7 +313,7 @@ class Proxy extends Events
     return info;
   }
 
-  sdpToNMOSSender(sdp)
+  sdpToNMOSSender(sdp, iface)
   {
     const id = uuid('sender:'+sdp.id, this.nmosNode.id);
 
@@ -290,9 +326,11 @@ class Proxy extends Events
       tags: {},
       // flow_id will be filled by flow
       transport: 'urn:x-nmos:transport:rtp.mcast',
-      interface_bindings: [],
+      interface_bindings: [ ],
       subscription: { receiver_id: null, active: false }
     };
+
+    if (iface) info.interface_bindings.push(iface.id);
 
     return info;
   }
@@ -399,6 +437,15 @@ class Proxy extends Events
       version: clock.version,
       gmid: clock.gmid.toLowerCase(),
       locked: false,
+    };
+  }
+
+  macToNMOSInterface(mac)
+  {
+    const id = mac.toLowerCase().replace(/:/g, '-');
+    return {
+      port_id: id,
+      chassis_id: id,
     };
   }
 }
