@@ -18,7 +18,8 @@ Log.defer = (lvl, cb) => {
     }
 }
 
-Log.level = 0;
+Log.level = parseInt(process.env.LOG) || 0;
+
 Log.error = Log.bind(null, 0);
 Log.warn = Log.bind(null, 1);
 Log.info = Log.bind(null, 2);
