@@ -1,4 +1,5 @@
-module.exports = {
-  Node: require('./nmos/node.js'),
-  Discovery: require('./nmos/discovery.js'),
-};
+module.exports = Object.assign({
+    Discovery: require('./nmos/discovery.js'),
+  },
+  require('./nmos/node.js')
+);

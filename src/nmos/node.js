@@ -11,6 +11,21 @@ const Log = require('../logger.js');
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
 const RegistryResolver = require('./discovery.js').RegistryResolver;
 const SDP = require('../sdp.js');
+const { performance } = require('perf_hooks');
+
+/**
+ * Generates a valid NMOS version string using Date.now() and 
+ * performance.now(). Now, accordint to the NMOS schema the version should be
+ * generated using TAI. I don't believe many implementations actually do that.
+ */
+function makeVersion()
+{
+  const seconds = Date.now();
+  const now = performance.now();
+  const nanoseconds = 0|((now - (now|0)) * 1E9);
+
+  return util.format('%d:%d', seconds, nanoseconds);
+}
 
 function whenOne(it)
 {
@@ -216,8 +231,9 @@ class Resource extends Datum
           return;
         }
         updating = true;
+        Log.info('Updating %s in NMOS registry %s', this.toString(), api.url);
         await retry(() => this.registerSelf(api), 3, 1000);
-        Log.info('Updated %s in NMOS registry', this);
+        Log.info('Updated %s in NMOS registry %s', this.toString(), api.url);
         this.registered.add(api.url);
         this.emit('registered');
 
@@ -684,7 +700,7 @@ class Node extends Resource
     const versions = [ 'v1.3', 'v1.2' ];
 
     const info = Object.assign({
-      version: util.format('%d:%d', Date.now(), 0),
+      version: makeVersion(),
       label: '',
       description: '',
       tags: {},
@@ -1175,4 +1191,7 @@ class Node extends Resource
   }
 }
 
-module.exports = Node;
+module.exports = {
+  Node: Node,
+  makeVersion: makeVersion,
+};
