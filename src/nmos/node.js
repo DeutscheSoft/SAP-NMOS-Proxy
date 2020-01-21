@@ -113,6 +113,11 @@ class Datum extends Events
     }
   }
 
+  refs()
+  {
+    return this.refcount;
+  }
+
   update(info)
   {
     const n = Object.assign({}, this.info, info);
@@ -183,7 +188,9 @@ class Resource extends Datum
     cleanup.whenClosed().then(async () => {
       try
       {
+        this.registered.delete(api.url);
         await this.unregisterSelf(api);
+        this.emit('unregistered');
       } catch (err) {
         if (err.statusCode === 404)
         {
@@ -364,26 +371,30 @@ class Flow extends Resource
     return Array.from(this.senders.values());
   }
 
-  makeSender(info)
+  makeSender(info, type)
   {
     info = Object.assign({}, info, {
       device_id: this.device.id,
       flow_id: this.id,
     });
-    const sender = this.senders.make(info);
+    const sender = this.senders.make(info, type);
 
-    sender.on('registered', () => this.device.emit('update'));
+    // this sender has been newly created. we want to know when
+    // it has been registered in order to re-register the device
+    // with the new sender
+    if (sender.refs() === 1)
+    {
+      sender.on('registered', () => this.device.emit('update'));
+      sender.on('unregistered', () => this.device.emit('update'));
+      sender.on('close', () => this.device.emit('update'));
+    }
 
     return sender;
   }
 
   makeRTPSender(info)
   {
-    info = Object.assign({}, info, {
-      device_id: this.device.id,
-      flow_id: this.id,
-    });
-    return this.senders.make(info, RTPSender);
+    return this.makeSender(info, RTPSender);
   }
 
   registerSelf(api)
