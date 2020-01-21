@@ -630,7 +630,7 @@ class Resolver extends DynamicSet
         {
           if (!this.isLocalService(info)) return;
 
-          const id = info.fullname;
+          const id = info.name;
 
           if (this.has(id)) return;
 
