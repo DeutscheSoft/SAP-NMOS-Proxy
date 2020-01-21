@@ -1056,7 +1056,7 @@ class Node extends Resource
 
     do
     {
-      name = 'clk' + i;
+      name = 'clk' + i++;
     } while (this.clocks.has(name));
 
     info = Object.assign({}, info, { name: name });
@@ -1119,7 +1119,7 @@ class Node extends Resource
 
     do
     {
-      name = 'en' + i;
+      name = 'en' + i++;
     } while (this.interfaces.has(name));
 
     info = Object.assign({}, info, { name: name });
