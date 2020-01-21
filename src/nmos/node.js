@@ -139,7 +139,7 @@ class Datum extends Events
     if (deep_equal(n, this.info))
       return;
     this.info = n;
-    this.emit('update');
+    this.triggerUpdate();
   }
 
   close()
@@ -156,6 +156,12 @@ class Datum extends Events
 
 class Resource extends Datum
 {
+  triggerUpdate()
+  {
+    this.info.version = makeVersion();
+    this.emit('update');
+  }
+
   get id()
   {
     return this.info.id;
@@ -164,7 +170,8 @@ class Resource extends Datum
   constructor(parent, info)
   {
     super(parent, info);
-    this.registered = new Set(); // list of urls
+    // map of API urls to registered JSON blob
+    this.registered = new Map();
   }
 
   update(info)
@@ -180,12 +187,12 @@ class Resource extends Datum
     return this.registered.has(url);
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
     return Promise.reject(new Error('Not implemented.'));
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
     return Promise.reject(new Error('Not implemented.'));
   }
@@ -203,8 +210,8 @@ class Resource extends Datum
     cleanup.whenClosed().then(async () => {
       try
       {
+        await this.unregisterSelf(api, this.info);
         this.registered.delete(api.url);
-        await this.unregisterSelf(api);
         this.emit('unregistered');
       } catch (err) {
         if (err.statusCode === 404)
@@ -231,20 +238,29 @@ class Resource extends Datum
           return;
         }
         updating = true;
-        Log.info('Updating %s in NMOS registry %s', this.toString(), api.url);
-        await retry(() => this.registerSelf(api), 3, 1000);
-        Log.info('Updated %s in NMOS registry %s', this.toString(), api.url);
-        this.registered.add(api.url);
-        this.emit('registered');
+        const data = this.json(api);
 
-        if (!created)
+        if (deep_equal(data, this.registered.get(api.url)))
         {
-          created = true;
-          // start registering children.
-          const child_task = this.startChildRegistration(api);
+          Log.info('Skipping update of %s in NMOS registry %s (identical data)', this.toString(), api.url);
+        }
+        else
+        {
+          Log.info('Updating %s in NMOS registry %s', this.toString(), api.url);
+          await retry(() => this.registerSelf(api, data), 3, 1000);
+          Log.info('Updated %s in NMOS registry %s', this.toString(), api.url);
+          this.registered.set(api.url, data);
+          this.emit('registered');
 
-          cleanup.add(() => cleanup.close());
-          cleanup.add(child_task);
+          if (!created)
+          {
+            created = true;
+            // start registering children.
+            const child_task = this.startChildRegistration(api);
+
+            cleanup.add(() => cleanup.close());
+            cleanup.add(child_task);
+          }
         }
       }
       catch (err)
@@ -343,14 +359,14 @@ class Sender extends Resource
     return this.parent;
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
-    return api.registerSender(this.json(api));
+    return api.registerSender(data);
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
-    return api.deleteSender(this.info);
+    return api.deleteSender(data)
   }
 
   getManifest()
@@ -400,9 +416,9 @@ class Flow extends Resource
     // with the new sender
     if (sender.refs() === 1)
     {
-      sender.on('registered', () => this.device.emit('update'));
-      sender.on('unregistered', () => this.device.emit('update'));
-      sender.on('close', () => this.device.emit('update'));
+      sender.on('registered', () => this.device.triggerUpdate());
+      sender.on('unregistered', () => this.device.triggerUpdate());
+      sender.on('close', () => this.device.triggerUpdate());
     }
 
     return sender;
@@ -413,14 +429,14 @@ class Flow extends Resource
     return this.makeSender(info, RTPSender);
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
-    return api.registerFlow(this.json(api));
+    return api.registerFlow(data);
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
-    return api.deleteFlow(this.info);
+    return api.deleteFlow(data);
   }
 
   startChildRegistration(api)
@@ -444,14 +460,14 @@ class Source extends Resource
     return this.parent;
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
-    return api.registerSource(this.json(api));
+    return api.registerSource(data);
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
-    return api.deleteSource(this.info);
+    return api.deleteSource(data);
   }
 
   constructor(...args)
@@ -615,14 +631,14 @@ class Device extends Resource
     return sender;
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
-    return api.registerDevice(this.json(api));
+    return api.registerDevice(data);
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
-    return api.deleteDevice(this.info);
+    return api.deleteDevice(data);
   }
 
   startChildRegistration(api)
@@ -987,14 +1003,14 @@ class Node extends Resource
     this.advertisement = null;
   }
 
-  registerSelf(api)
+  registerSelf(api, data)
   {
-    return api.registerNode(this.json(api));
+    return api.registerNode(data);
   }
 
-  unregisterSelf(api)
+  unregisterSelf(api, data)
   {
-    return api.deleteNode(this.info);
+    return api.deleteNode(data);
   }
 
   startChildRegistration(api)
@@ -1094,9 +1110,9 @@ class Node extends Resource
 
     clock.on('close', () => {
       this.clocks.delete(name);
-      this.emit('update');
+      this.triggerUpdate();
     });
-    clock.on('update', () => this.emit('update'));
+    clock.on('update', () => this.triggerUpdate());
 
     return clock;
   }
@@ -1157,9 +1173,9 @@ class Node extends Resource
 
     iface.on('close', () => {
       this.interfaces.delete(name);
-      this.emit('update');
+      this.triggerUpdate();
     });
-    iface.on('update', () => this.emit('update'));
+    iface.on('update', () => this.triggerUpdate());
 
     return iface;
   }
