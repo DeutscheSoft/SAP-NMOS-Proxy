@@ -295,7 +295,7 @@ class Proxy extends Events
 
     const info = {
       id: id,
-      version: util.format('%d:%d', Date.now(), 0),
+      version: NMOS.makeVersion(),
       label: sdp.name.split(':')[0].trim(),
       description: '',
       tags: {},
@@ -319,7 +319,7 @@ class Proxy extends Events
 
     const info = {
       id: id,
-      version: util.format('%d:%d', Date.now(), 0),
+      version: NMOS.makeVersion(),
       label: sdp.name,
       sdp: sdp,
       description: '',
@@ -341,7 +341,7 @@ class Proxy extends Events
 
     const info = {
       id: id,
-      version: util.format('%d:%d', Date.now(), 0),
+      version: NMOS.makeVersion(),
       label: sdp.name,
       description: '',
       tags: {},
@@ -401,7 +401,7 @@ class Proxy extends Events
 
     const info = {
       id: id,
-      version: util.format('%d:%d', Date.now(), 0),
+      version: NMOS.makeVersion(),
       label: sdp.name,
       description: '',
       tags: {},
