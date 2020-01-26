@@ -7,9 +7,9 @@ const NMOS = require('./nmos.js');
 const Log = require('./logger.js');
 const SAP = require('./sap.js');
 const SDP = require('./sdp.js');
-const toMAC = require('@network-utils/arp-lookup').toMAC;
 
 const uuid = require('uuid/v5');
+const lookupMACAddress = require('./mac_lookup.js').lookupMACAddress;
 
 function interface_start_address(interface)
 {
@@ -22,26 +22,6 @@ function interface_start_address(interface)
   }
 
   return ip.join('.');
-}
-
-function IPtoMAC(ip)
-{
-  // the IP could be local
-  const interfaces = os.networkInterfaces();
-
-  for (let ifname in interfaces)
-  {
-    const addresses = interfaces[ifname];
-
-    for (let i = 0; i < addresses.length; i++)
-    {
-      const info = addresses[i];
-
-      if (info.address === ip) return Promise.resolve(info.mac);
-    }
-  }
-
-  return toMAC(ip);
 }
 
 // The namespace ID of the nmos proxy. We use this as the base of
@@ -220,20 +200,34 @@ class Proxy extends Events
       let sender = flow.makeRTPSender(this.sdpToNMOSSender(sdp, iface));
       Log.info('Created NMOS sender %o', sender.info);
 
+      const mac_lookup_task = async () => {
+        let mac;
+
+        do
+        {
+          mac = await lookupMACAddress(sdp.origin_addr);
+
+          if (closed) return;
+
+          if (mac)
+          {
+            iface = this.nmosNode.makeInterface(this.macToNMOSInterface(mac));
+            Log.info('Created NMOS interface %o for ip %o',
+                     iface.info, sdp.origin_addr);
+            sender.update(this.sdpToNMOSSender(sdp, iface));
+          }
+          else
+          {
+            Log.warn('Could not find mac address for ip %o', sdp.origin_addr);
+            await delay(1000);
+
+            if (closed) return;
+          }
+        }
+        while (!mac);
+      };
+
       const task = async () => {
-        let mac = await IPtoMAC(sdp.origin_addr);
-
-        if (mac)
-        {
-          iface = this.nmosNode.makeInterface(this.macToNMOSInterface(mac));
-          sender.update(this.sdpToNMOSSender(sdp, iface));
-          Log.info('Found interface for ip %o', sdp.origin_addr);
-        }
-        else
-        {
-          Log.warn('Could not find mac address for ip %o', sdp.origin_addr);
-        }
-
         do
         {
           try
@@ -258,6 +252,10 @@ class Proxy extends Events
 
       task().catch((err) => {
         Log.error('nmos update task terminated: %o', err);
+      });
+
+      mac_lookup_task().catch((err) => {
+        Log.error('MAC address lookup task terminated: %o', err);
       });
 
       return () => {
