@@ -84,7 +84,10 @@ dnssdServiceTypeNoValidate.prototype = Object.assign(Object.create(dnssd.Service
     }
     catch (err)
     {
-      console.warn("Suppressed validation error:", err);
+      if (err.toString().search("Service '_nmos-registration' is > 15 bytes") !== -1)
+        return;
+
+      throw err;
     }
   }
 });
