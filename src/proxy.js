@@ -187,9 +187,9 @@ class Proxy extends Events
       Log.info('Created NMOS device %o', device.info);
 
       let clock = this.nmosNode.makeClock(this.sdpToNMOSClock(sdp));
-      Log.info('Created NMOS clock %o', device.info);
+      Log.info('Created NMOS clock %o', clock.info);
 
-      let source = device.makeSource(this.sdpToNMOSSource(sdp));
+      let source = device.makeSource(this.sdpToNMOSSource(sdp, clock));
       Log.info('Created NMOS source %o', source.info);
 
       let flow = source.makeFlow(this.sdpToNMOSFlow(sdp));
@@ -242,10 +242,10 @@ class Proxy extends Events
           }
 
           device.update(this.sdpToNMOSDevice(sdp));
-          sender.update(this.sdpToNMOSSender(sdp, iface));
-          source.update(this.sdpToNMOSSource(sdp));
-          flow.update(this.sdpToNMOSFlow(sdp));
           clock.update(this.sdpToNMOSClock(sdp));
+          sender.update(this.sdpToNMOSSender(sdp, iface));
+          source.update(this.sdpToNMOSSource(sdp, clock));
+          flow.update(this.sdpToNMOSFlow(sdp));
         }
         while (true);
       };
@@ -333,7 +333,7 @@ class Proxy extends Events
     return info;
   }
 
-  sdpToNMOSSource(sdp)
+  sdpToNMOSSource(sdp, clock)
   {
     const id = uuid('source:'+sdp.id, this.nmosNode.id);
 
@@ -346,7 +346,7 @@ class Proxy extends Events
       caps: {},
       // device_id is filled by the device
       parents: [],
-      clock_name: null,
+      clock_name: clock ? clock.id : null,
       format: "urn:x-nmos:format:audio",
       channels: [
         {
