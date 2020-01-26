@@ -6,7 +6,7 @@ const http = require('http');
 const connect = require('connect');
 const dnssd = require('dnssd');
 
-const Cleanup = require('../event_helpers.js').Cleanup;
+const { Cleanup, delay } = require('../event_helpers.js');
 const Log = require('../logger.js');
 const DynamicSet = require('../dynamic_set.js').DynamicSet;
 const RegistryResolver = require('./discovery.js').RegistryResolver;
@@ -47,13 +47,6 @@ function deep_equal(a, b)
   {
     return false;
   }
-}
-
-function delay(timeout)
-{
-  return new Promise((resolve, reject) => {
-    setTimeout(resolve, timeout);
-  });
 }
 
 async function retry(task, n, timeout)

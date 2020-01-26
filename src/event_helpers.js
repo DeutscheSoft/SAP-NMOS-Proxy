@@ -1,5 +1,12 @@
 const Log = require('./logger.js');
 
+function delay(timeout)
+{
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, timeout);
+  });
+}
+
 class Cleanup
 {
   constructor()
@@ -94,4 +101,5 @@ class Cleanup
 
 module.exports = {
   Cleanup: Cleanup,
+  delay: delay,
 };
