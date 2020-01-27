@@ -35,15 +35,23 @@ function appendSourceFilter(sdp)
 
   let ret = sdp.raw;
 
-  if (!ret.endsWith('\r\n'))
+  let ends_with_crlf = ret.endsWith('\r\n');
+
+  if (!ends_with_crlf)
+  {
     ret += '\r\n';
+  }
 
   ret += util.format('a=source-filter:incl %s %s %s %s',
                      connection_data.nettype,
                      connection_data.addrtype,
                      connection_data.address.split('/')[0],
                      origin_address);
-  ret += '\r\n';
+
+  if (ends_with_crlf)
+  {
+    ret += '\r\n';
+  }
 
   return ret;
 }
