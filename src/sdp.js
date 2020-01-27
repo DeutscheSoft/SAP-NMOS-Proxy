@@ -66,6 +66,11 @@ class SDP
     return addr;
   }
 
+  get origin_address()
+  {
+    return this.origin_addr;
+  }
+
   toString()
   {
     return this.raw;
@@ -105,6 +110,25 @@ class SDP
         };
       }
     }
+  }
+
+  get connection_data()
+  {
+    const tmp = this.get_field('c');
+
+    if (!tmp)
+      throw new Error('Missing connection data in SDP string.');
+
+    const a = tmp.split(' ');
+
+    if (a.length !== 3)
+      throw new Error('Malformed connection data in SDP string.');
+
+    return {
+      nettype: a[0],
+      addrtype: a[1],
+      address: a[2],
+    };
   }
 }
 
