@@ -46,8 +46,10 @@ class Proxy extends Events
 
     const node_id = uuid('node:'+interface_start_address(network_interface),
                          options.nmos_uuid||PROXY_NAMESPACE);
+    console.log(options);
     this.nmosNode = new NMOS.Node({
       ip: ip,
+      http_port: options.http_port,
       info: {
         id: node_id,
         label: 'SAP to NMOS proxy',
