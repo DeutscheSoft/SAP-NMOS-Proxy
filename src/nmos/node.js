@@ -14,6 +14,41 @@ const SDP = require('../sdp.js');
 const { performance } = require('perf_hooks');
 
 /**
+ * This function appends one source-filter attribute to the sdp, unless one is
+ * already present. This source filter will be inclusive and use the origin
+ * address as source and connection data information as destination.
+ */
+function appendSourceFilter(sdp)
+{
+
+  const attributes = sdp.get_fields('a');
+
+  for (let i = 0; i < attributes.length; i++)
+  {
+    // found a source filter
+    if (attributes[i].startsWith('source-filter'))
+      return sdp.raw;
+  }
+
+  const connection_data = sdp.connection_data;
+  const origin_address = sdp.origin_address;
+
+  let ret = sdp.raw;
+
+  if (!ret.endsWith('\r\n'))
+    ret += '\r\n';
+
+  ret += util.format('a=source-filter:incl %s %s %s %s',
+                     connection_data.nettype,
+                     connection_data.addrtype,
+                     connection_data.address.split('/')[0],
+                     origin_address);
+  ret += '\r\n';
+
+  return ret;
+}
+
+/**
  * Generates a valid NMOS version string using Date.now() and 
  * performance.now(). Now, accordint to the NMOS schema the version should be
  * generated using TAI. I don't believe many implementations actually do that.
@@ -543,7 +578,19 @@ class RTPSender extends Sender
 
   getManifest()
   {
-    return [ 'application/sdp', this.sdp.raw ];
+    let sdp;
+
+    try
+    {
+      sdp = appendSourceFilter(this.sdp);
+    }
+    catch (e)
+    {
+      Log.error('Appending source-filter failed: %o', e);
+      sdp = this.sdp.raw;
+    }
+
+    return [ 'application/sdp', sdp ];
   }
 }
 
