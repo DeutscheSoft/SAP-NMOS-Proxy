@@ -38,6 +38,13 @@ argumentParser.addArgument(
   }
 );
 
+argumentParser.addArgument(
+  [ '-p', '--http-port' ],
+  {
+    help: 'HTTP port to use for the NMOS node API.',
+  }
+);
+
 const args = argumentParser.parseArgs();
 
 const interfaces = new Interfaces();
@@ -55,6 +62,7 @@ if (args.hasOwnProperty('loglevel')
 
 const cleanup = interfaces.filter(interface_filter).forEachAsync((network_interface, ifname) => {
   const proxy = new Proxy({
+  http_port: args.http_port ? parseInt(args.http_port) : undefined,
     interface: network_interface,
   });
 
