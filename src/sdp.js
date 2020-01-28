@@ -114,7 +114,11 @@ class SDP
 
   get connection_data()
   {
-    const tmp = this.get_field('c');
+    const fields = this.get_fields('c');
+
+    if (!fields.length) return;
+
+    const tmp = fields[0];
 
     if (!tmp)
       throw new Error('Missing connection data in SDP string.');
