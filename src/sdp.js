@@ -116,23 +116,18 @@ class SDP
   {
     const fields = this.get_fields('c');
 
-    if (!fields.length) return;
+    return fields.map((tmp) => {
+      const a = tmp.split(' ');
 
-    const tmp = fields[0];
+      if (a.length !== 3)
+        throw new Error('Malformed connection data in SDP string.');
 
-    if (!tmp)
-      throw new Error('Missing connection data in SDP string.');
-
-    const a = tmp.split(' ');
-
-    if (a.length !== 3)
-      throw new Error('Malformed connection data in SDP string.');
-
-    return {
-      nettype: a[0],
-      addrtype: a[1],
-      address: a[2],
-    };
+      return {
+        nettype: a[0],
+        addrtype: a[1],
+        address: a[2],
+      };
+    });
   }
 }
 
