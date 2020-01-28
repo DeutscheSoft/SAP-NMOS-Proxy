@@ -1,6 +1,6 @@
 {
   "name": "sap-nmos-proxy",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "A proxy application which connects NMOS networks with SAP.",
   "main": "index.js",
   "scripts": {
