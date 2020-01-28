@@ -30,20 +30,23 @@ function appendSourceFilter(sdp)
       return sdp.raw;
   }
 
+  const fields = sdp.get_fields('c');
   const connection_datas = sdp.connection_data;
   const origin_address = sdp.origin_address;
 
   let ret = sdp.raw;
 
-  let ends_with_crlf = ret.endsWith('\r\n');
+  connection_datas.forEach((connection_data, i) => {
+    const cline = 'c=' + fields[i];
+    const source_filter = util.format('a=source-filter:incl %s %s %s %s',
+                                      connection_data.nettype,
+                                      connection_data.addrtype,
+                                      connection_data.address.split('/')[0],
+                                      origin_address);
 
-  connection_datas.forEach((connection_data) => {
-    ret += util.format('a=source-filter:incl %s %s %s %s',
-                       connection_data.nettype,
-                       connection_data.addrtype,
-                       connection_data.address.split('/')[0],
-                       origin_address);
-    ret += '\r\n';
+    console.log(ret);
+    ret = ret.replace(cline, cline + '\r\n' + source_filter);
+    console.log(ret);
   });
 
   return ret;
