@@ -1155,7 +1155,6 @@ class Node extends Resource
     const clock = new Clock(this, info);
 
     this.clocks.set(name, clock);
-    this.triggerUpdate();
 
     clock.on('close', () => {
       this.clocks.delete(name);
@@ -1219,7 +1218,6 @@ class Node extends Resource
     const iface = new Interface(this, info);
 
     this.interfaces.set(name, iface);
-    this.triggerUpdate();
 
     iface.on('close', () => {
       this.interfaces.delete(name);
