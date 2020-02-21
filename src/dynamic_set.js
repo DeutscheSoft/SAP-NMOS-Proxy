@@ -198,6 +198,11 @@ class DynamicSet extends Events
     return cleanup;
   }
 
+  size()
+  {
+    return this.entries.size;
+  }
+
   close()
   {
     if (this.closed) return;
