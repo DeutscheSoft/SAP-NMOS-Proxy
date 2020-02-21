@@ -197,6 +197,27 @@ class RegistrationAPI extends RestAPI
     });
   }
 
+  updateNode(info)
+  {
+    if (registration_schemas)
+    {
+      const validator = registration_schemas.getSchema('node.json');
+
+      if (validator)
+      {
+        if (!validator(info))
+        {
+          throw new Error("node info does not fit schema.\n");
+        }
+      }
+    }
+
+    return this.post('resource', {
+      type: 'node',
+      data: info,
+    });
+  }
+
   deleteNode(info)
   {
     return this.delete('resource/nodes/' + info.id);

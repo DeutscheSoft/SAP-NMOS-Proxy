@@ -227,6 +227,11 @@ class Resource extends Datum
     return Promise.reject(new Error('Not implemented.'));
   }
 
+  updateSelf(api, data)
+  {
+    return this.registerSelf(api, data);
+  }
+
   unregisterSelf(api, data)
   {
     return Promise.reject(new Error('Not implemented.'));
@@ -282,7 +287,16 @@ class Resource extends Datum
         else
         {
           Log.info('Updating %s in NMOS registry %s', this.toString(), api.url);
-          await retry(() => this.registerSelf(api, data), 3, 1000);
+          await retry(() => {
+              if (!created)
+              {
+                return this.registerSelf(api, data);
+              }
+              else
+              {
+                return this.updateSelf(api, data);
+              }
+            }, 3, 1000);
           Log.info('Updated %s in NMOS registry %s', this.toString(), api.url);
           this.registered.set(api.url, data);
           this.emit('registered');
@@ -1053,6 +1067,11 @@ class Node extends Resource
   registerSelf(api, data)
   {
     return api.registerNode(data);
+  }
+
+  updateSelf(api, data)
+  {
+    return api.updateNode(data);
   }
 
   unregisterSelf(api, data)
