@@ -2,7 +2,7 @@ const Events = require('events');
 const os = require('os');
 
 const util = require('util');
-const Cleanup = require('./event_helpers.js').Cleanup;
+const { Cleanup, delay } = require('./event_helpers.js');
 const NMOS = require('./nmos.js');
 const Log = require('./logger.js');
 const SAP = require('./sap.js');
