@@ -677,7 +677,7 @@ class Resolver extends DynamicSet
       browser.on('serviceDown', (info) => {
         try
         {
-          const id = info.fullname;
+          const id = info.name;
 
           if (this.has(id))
           {
