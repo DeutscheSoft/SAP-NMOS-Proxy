@@ -744,10 +744,59 @@ function QueryAndNodeResolver(options)
   return queries_and_nodes;
 }
 
+function QueryOrNodeResolver(options)
+{
+  const queries = new QueryResolver(options);
+  const queries_or_nodes = queries.union();
+
+  let nodes;
+
+  const include_nodes = () => {
+    if (!nodes)
+    {
+      nodes = new NodeResolver(options);
+      queries_or_nodes.addSet(nodes);
+    }
+  };
+
+  const exclude_nodes = () => {
+    if (nodes)
+    {
+      queries_or_nodes.removeSet(nodes);
+      nodes.close();
+      nodes = null;
+    }
+  };
+
+  const maybe_include_nodes = () => {
+    if (queries.size() == 0)
+    {
+      include_nodes();
+    }
+  };
+
+  let timer = setInterval(maybe_include_nodes, 2000);
+
+  // if we find a registry, we stop looking for nodes
+  queries.on('add', exclude_nodes);
+
+  queries_or_nodes.on('close', () => {
+    if (nodes)
+    {
+      nodes.close();
+      nodes = null;
+    }
+    queries.close();
+    clearInterval(timer);
+  });
+
+  return queries_or_nodes;
+}
+
 function AllSenders(options)
 {
   const senders = new UnionSet();
-  const queries_and_nodes = QueryAndNodeResolver(options);
+  const queries_and_nodes = QueryOrNodeResolver(options);
 
   const cleanup = queries_and_nodes.forEachAsync((api, id, set) => {
     let _senders;
