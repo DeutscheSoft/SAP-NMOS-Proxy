@@ -363,20 +363,31 @@ class FilteredSet extends DynamicSet
   {
     super();
     this.set = set;
-    this.filter = filter;
     const cleanup = new Cleanup();
+
+    const safe_filter = (...args) => {
+      try
+      {
+        return filter(...args);
+      }
+      catch (err)
+      {
+        Log.error('FilteredSet callback generated an exception: %o', err);
+        return false;
+      }
+    };
 
     this.cleanup = cleanup;
 
     cleanup.subscribe(set, 'add', (id, entry, ...extra) => {
-      if (filter(id, entry))
+      if (safe_filter(id, entry))
       {
         this.add(id, entry);
       }
     });
     cleanup.subscribe(set, 'update', (id, entry, prev, ...extra) => {
       const was = this.has(id);
-      const will = filter(id, entry);
+      const will = safe_filter(id, entry);
 
       if (!was)
       {
@@ -404,7 +415,7 @@ class FilteredSet extends DynamicSet
     cleanup.subscribe(set, 'close', () => this.close());
 
     set.forEach((entry, id) => {
-      if (filter(id, entry))
+      if (safe_filter(id, entry))
         this.add(id, entry);
     });
   }
