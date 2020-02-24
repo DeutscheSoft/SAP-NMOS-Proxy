@@ -744,7 +744,15 @@ function QueryAndNodeResolver(options)
   return queries_and_nodes;
 }
 
-function QueryOrNodeResolver(options)
+/**
+ * Returns a union of both QueryResolver (e.g. NMOS registries) and
+ * NodeResolver (e.g. NMOS nodes).
+ *
+ * @param options - Options passed to both QueryResolver and NodeResolver.
+ * @param [transform] - Transformation function which can be used to e.g. filter
+ *      the resulting UnionSet.
+ */
+function QueryOrNodeResolver(options, transform)
 {
   const queries = new QueryResolver(options);
   const queries_or_nodes = queries.union();
@@ -780,7 +788,9 @@ function QueryOrNodeResolver(options)
   // if we find a registry, we stop looking for nodes
   queries.on('add', exclude_nodes);
 
-  queries_or_nodes.on('close', () => {
+  const result = transform ? transform(queries_or_nodes) : queries_or_nodes;
+
+  result.on('close', () => {
     if (nodes)
     {
       nodes.close();
@@ -790,13 +800,20 @@ function QueryOrNodeResolver(options)
     clearInterval(timer);
   });
 
-  return queries_or_nodes;
+  return result;
 }
 
-function AllSenders(options)
+/**
+ * Returns a dynamic set of all Senders.
+ *
+ * @param options - Options which is passed to QueryOrNodeResolver.
+ * @param [transform] - Optional transformation function passed to
+ *      QueryOrNodeResolver.
+ */
+function AllSenders(options, transform)
 {
   const senders = new UnionSet();
-  const queries_and_nodes = QueryOrNodeResolver(options);
+  const queries_and_nodes = QueryOrNodeResolver(options, transform);
 
   const cleanup = queries_and_nodes.forEachAsync((api, id, set) => {
     let _senders;
