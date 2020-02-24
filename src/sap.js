@@ -407,16 +407,15 @@ class Announcements extends DynamicSet
 
       if (packet.is_announcement())
       {
-        Log.log('Received an SDP packet,', sdp);
 
         if (this.ignores && this.ignores.has(sdp))
         {
-          Log.log('Ignoring.');
+          Log.log('Ignoring announcement for SDP(%o)', sdp.id);
           return;
         }
 
         const timeout = () => {
-          Log.log('SDP timed out:', sdp);
+          Log.log('SDP(%o) timed out.', sdp.id);
           this._timeouts.delete(id);
           this.delete(id, packet);
         };
@@ -426,14 +425,20 @@ class Announcements extends DynamicSet
           clearTimeout(this._timeouts.get(id));
           this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
                                             1000));
-          Log.log('Will update SDP', sdp, 'unless same');
-          if (sdp.raw === prev_sdp.raw) return;
-          Log.log("... wasn't same, will update");
+          if (sdp.raw === prev_sdp.raw)
+          {
+            Log.log('Received unchanged announcement of SDP(%o)', sdp.id);
+            return;
+          }
+          else
+          {
+            Log.log('Received changed announcement of SDP(%o)', sdp.id);
+          }
           this.update(id, sdp, packet);
         }
         else
         {
-          Log.log('Will add SDP', sdp);
+          Log.log('Received new announcement of SDP(%o)', sdp.id);
           this.add(id, sdp, packet);
           this._timeouts.set(id, setTimeout(timeout, AD_INTERVAL * NO_OF_ADS *
                                             1000));
@@ -441,9 +446,15 @@ class Announcements extends DynamicSet
       }
       else
       {
-        Log.log('Received deletion for SDP', sdp);
-        if (!prev_sdp) return;
-        Log.log('and will proceed to remove');
+        if (!prev_sdp)
+        {
+          Log.log('Received deletion for unknown SDP(%o)', sdp.id);
+          return;
+        }
+        else
+        {
+          Log.log('Received deletion for SDP(%o)', sdp.id);
+        }
         clearTimeout(this._timeouts.get(id));
         this._timeouts.delete(id);
         this.delete(id, packet, true);
