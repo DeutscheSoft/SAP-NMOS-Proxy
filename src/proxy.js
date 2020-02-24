@@ -63,7 +63,19 @@ class Proxy extends Events
     this.sapAnnouncements = new SAP.Announcements(this.sapPort);
     this.sapAnnounce = new SAP.OwnAnnouncements();
     this.sapAnnouncements.ignoreFrom(this.sapAnnounce);
-    this.nmosSenders = NMOS.Discovery.AllSenders({ interface: ip });
+    this.nmosSenders = NMOS.Discovery.AllSenders({ interface: ip }, (queries_or_nodes) => {
+      return queries_or_nodes.filter((id, api) => {
+
+        if (this.nmosNode.info.href.startsWith(api.url.origin))
+        {
+          console.log('Ignoring own NMOS Node API: %o', api.url.origin);
+          return false;
+        }
+
+        return true;
+      });
+      return queries_or_nodes;
+    });
     this.nmosSendersWithSDP = this.nmosSenders.asyncFilter(async (sender_id, sender) => {
       let sdp = null;
 
