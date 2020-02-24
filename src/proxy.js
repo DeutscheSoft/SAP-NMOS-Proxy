@@ -73,15 +73,6 @@ class Proxy extends Events
         return false;
       }
 
-      const dev = await sender.api.fetchDevice(sender.info.device_id);
-
-      if (this.nmosNode.id === dev.node_id)
-      {
-        Log.info('Found sender %o which is part of our own NMOS node. Ignoring.',
-                 sender.id);
-        return false;
-      }
-
       return true;
     }).asyncMap(async (sender_id, sender, set, action) => {
       Log.info('Found NMOS sender: %o\n', sender);
