@@ -32,7 +32,15 @@ test('DynamicSet.from()', t => {
 test('DynamicSet.filter', t => {
     const a = enumerate(10);
     const is_even = (v) => !(v & 1);
-    t.deepEqual(a.filter(is_even), Array.from(DynamicSet.from(a).filter(is_even).keys())); 
+    t.deepEqual(a.filter(is_even), Array.from(DynamicSet.from(a).filter(is_even).keys()));
+});
+test('DynamicSet.filter with errors', t => {
+    const a = enumerate(10);
+    const is_even = (v) => {
+      if (!(v & 1)) return true;
+      throw new Error('Ignore me.');
+    };
+    t.deepEqual(a.filter((v) => !(v & 1)), Array.from(DynamicSet.from(a).filter(is_even).keys()));
 });
 test('DynamicSet.union', t => {
     const a = enumerate(10);
