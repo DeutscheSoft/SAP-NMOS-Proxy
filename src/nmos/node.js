@@ -1205,7 +1205,7 @@ class Node extends Resource
     {
       const clock = this.findClock((clock) => {
         return clock.info.ref_type === 'ptp' &&
-          clock.info.ref_type.gmid === info.gmid;
+          clock.info.gmid === info.gmid;
       });
 
       if (clock) return clock.ref();
