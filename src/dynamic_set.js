@@ -485,6 +485,7 @@ class PollingSet extends DynamicSet
     this.interval = interval || 5000;
     this.poll_id = undefined;
     this.fetch();
+    this.failure_count = 0;
   }
 
   create(info)
@@ -495,6 +496,18 @@ class PollingSet extends DynamicSet
   makeID(info)
   {
     return info.id;
+  }
+
+  nextInterval()
+  {
+    let interval = this.interval;
+
+    if (this.failure_count > 0)
+    {
+      interval *= min(5, 1 + Math.sqrt(this.failure_count));
+    }
+
+    return interval;
   }
 
   async fetch()
@@ -530,15 +543,18 @@ class PollingSet extends DynamicSet
         if (!found.has(id))
           this.delete(id);
       });
+      this.failure_count = 0;
     }
     catch (err)
     {
       if (this.closed) return;
 
-      Log.warn('Fetching entries failed:', err);
+      this.failure_count++;
+
+      Log.warn('Fetching entries failed:', err.toString());
     }
 
-    this.poll_id = setTimeout(() => this.fetch(), this.interval);
+    this.poll_id = setTimeout(() => this.fetch(), this.nextInterval());
   }
 
   close()
