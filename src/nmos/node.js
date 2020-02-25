@@ -1145,6 +1145,7 @@ class Node extends Resource
     if (this.advertisement)
       this.advertisement.stop();
     this.cleanup.close();
+    super.close();
   }
 
   baseUrl()
