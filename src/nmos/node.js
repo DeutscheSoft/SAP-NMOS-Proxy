@@ -259,7 +259,7 @@ class Resource extends Datum
           // was not registered, yet.
           return;
         }
-        Log.error('Failed to remove device: %o', this.id);
+        Log.error('Failed to remove %o', this.toString());
       }
     });
 
@@ -274,7 +274,7 @@ class Resource extends Datum
         if (updating)
         {
           again = true;
-          Log.verbose('Waiting for previous update to complete in %s', this);
+          Log.verbose('Waiting for previous update to complete in %s', this.toString());
           return;
         }
         updating = true;
@@ -314,14 +314,14 @@ class Resource extends Datum
       }
       catch (err)
       {
-        Log.error('Update of %o failed.', this.info);
+        Log.error('Update of %o failed.', this.toString());
         cleanup.close();
         return;
       }
       updating = false;
       if (again)
       {
-        Log.verbose('doing update again one more time.');
+        Log.verbose('doing update again one more time in %s', this.toString());
         again = false;
         do_update();
       }
@@ -607,7 +607,7 @@ class RTPSender extends Sender
     }
     catch (e)
     {
-      Log.error('Appending source-filter failed: %o', e);
+      Log.error('Appending source-filter failed: %o', e.toString());
       sdp = this.sdp.raw;
     }
 
@@ -989,7 +989,7 @@ class Node extends Resource
     app
     .use('/_manifest', (req, res, next) => {
       const path = req.url.substr(1);
-      Log.info('Request for Manifest %o', path);
+      Log.verbose('Request for Manifest %o', path);
 
       if (path.length)
       {
@@ -1007,14 +1007,14 @@ class Node extends Resource
 
           res.setHeader('Content-Type', manifest[0]);
           res.end(manifest[1]);
-          Log.info('Manifest: %o', manifest);
+          Log.verbose('Manifest: %o', manifest);
           found = true;
         });
 
         if (found) return;
       }
 
-      Log.info('Manifest %o not found.', path);
+      Log.warn('Manifest %o not found.', path);
       next();
     })
     .use('/x-nmos/node', exact(json(() => {

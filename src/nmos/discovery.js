@@ -180,7 +180,7 @@ class RegistrationAPI extends RestAPI
           Log.info('Node exists. Deleting node.');
 
           this.deleteNode(info).catch((err) => {
-            Log.warn('Deleting Node failed. Trying register anyway: %o', err);
+            Log.warn('Deleting Node failed. Trying register anyway: %o', err.toString());
           }).then(() => {
             return this.registerNode(info);
           }).then(resolve, reject);
@@ -668,7 +668,7 @@ class Resolver extends DynamicSet
         }
         catch (error)
         {
-          Log.warn('Could not determine URL for NMOS service: ', error);
+          Log.warn('Could not determine URL for NMOS service: ', error.toString());
         }
       };
 
@@ -686,7 +686,7 @@ class Resolver extends DynamicSet
         }
         catch (error)
         {
-          Log.warn('Could not determine URL for NMOS service: ', error);
+          Log.warn('Could not determine URL for NMOS service: ', error.toString());
         }
       });
       browser.start();
