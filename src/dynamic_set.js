@@ -504,7 +504,7 @@ class PollingSet extends DynamicSet
 
     if (this.failure_count > 0)
     {
-      interval *= min(5, 1 + Math.sqrt(this.failure_count));
+      interval *= Math.min(5, 1 + Math.sqrt(this.failure_count));
     }
 
     return interval;
