@@ -103,7 +103,7 @@ class Proxy extends Events
       }
       catch (err)
       {
-        Log.error("Failed to fetch SDP string from sender %o", sender);
+        Log.error("Failed to fetch SDP string from sender %o", sender.id);
       }
 
       return [ sender_id, [ sender, sdp ] ];
