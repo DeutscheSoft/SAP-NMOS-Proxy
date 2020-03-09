@@ -38,18 +38,15 @@ function appendSourceFilter(sdp)
 
   connection_datas.forEach((connection_data, i) => {
     const cline = 'c=' + fields[i];
-    let src = origin_address;
-
-    if (i && src === '192.168.90.150')
-      src = '192.168.190.150';
-
     const source_filter = util.format('a=source-filter:incl %s %s %s %s',
                                       connection_data.nettype,
                                       connection_data.addrtype,
                                       connection_data.address.split('/')[0],
-                                      src);
+                                      origin_address);
 
+    console.log(ret);
     ret = ret.replace(cline, cline + '\r\n' + source_filter);
+    console.log(ret);
   });
 
   return ret;
