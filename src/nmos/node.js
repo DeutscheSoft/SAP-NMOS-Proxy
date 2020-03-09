@@ -44,9 +44,7 @@ function appendSourceFilter(sdp)
                                       connection_data.address.split('/')[0],
                                       origin_address);
 
-    console.log(ret);
     ret = ret.replace(cline, cline + '\r\n' + source_filter);
-    console.log(ret);
   });
 
   return ret;
