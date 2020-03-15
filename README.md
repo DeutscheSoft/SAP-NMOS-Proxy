@@ -3,11 +3,11 @@
 This repository contains a set of tools to bridge between NMOS and SAP (or SDP
 more generally).
 
-This project is ogranized by Yamaha Coporation and involves DeusO GmbH, SONY and Audinate.
+This project is organized by Yamaha Coporation and involves DeusO GmbH, SONY and Audinate.
 
 # Proxy
 
-The proxy application mainly consists of a proxy class which combines both an
+The proxy application mainly consists of a proxy class which combines both a
 SAP port and a NMOS node. The proxy will listen for announcements on the SAP
 port and turn them into NMOS flows, senders and devices in the NMOS node.
 Likewise, if the proxy finds NMOS senders with SDP information in the NMOS
