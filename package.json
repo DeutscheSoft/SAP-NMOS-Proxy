@@ -1,8 +1,8 @@
 {
-  "name": "sap-nmos-proxy",
+  "name": "@deutschesoft/sap-nmos-proxy",
   "version": "1.0.27",
   "description": "A proxy application which connects NMOS networks with SAP.",
-  "main": "index.js",
+  "main": "bin/proxy.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
