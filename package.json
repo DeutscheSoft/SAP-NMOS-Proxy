@@ -12,7 +12,6 @@
     "Tobias S. Josefowitz <tobij@deuso.de>"
   ],
   "license": "MIT",
-  "private": true,
   "peerDependencies": {
     "ajv": "^6.10.2"
   },
