@@ -1,9 +1,20 @@
+
+/*
+ * This is much more linient than it needs to be.
+ */
+function split_lines(str)
+{
+  const lines = str.split('\n').map((s) => s.trim());
+
+  return lines.filter((s) => s.length > 0);
+}
+
 class SDP
 {
   constructor(raw)
   {
     this.raw = raw;
-    this.lines = this.raw.split('\r\n');
+    this.lines = split_lines(raw);
 
     {
       const [ username, session_id, session_version, nettype, addrtype, addr ] = this.origin.split(' ');
