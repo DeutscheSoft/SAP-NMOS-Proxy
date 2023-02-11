@@ -9,6 +9,6 @@
   },
   "author": "",
   "dependencies": {
-    "ava": "^2.4.0"
+    "ava": "^5.2.0"
   }
 }
